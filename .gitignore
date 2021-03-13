@@ -1,0 +1,7 @@
+/target
+.DS_Store
+*.o
+*.d
+simulator
+*.sim.s
+

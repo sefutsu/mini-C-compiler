@@ -1,0 +1,133 @@
+use std::str::FromStr;
+use crate::ast;
+
+grammar;
+
+pub Program: ast::Program = <Functions> => ast::Program{functions: <>};
+
+Functions: Vec<ast::Function> = {
+  <Function> => vec![<>],
+  <v:Functions> <f:Function> => {
+    let mut v = v;
+    v.push(f);
+    v
+  }
+};
+
+pub Function: ast::Function = {
+  <t:Type> <n:Var> <a:TypeIdBlock> <s:SentenceBlock> =>
+    ast::Function{ret_type: t, name: n, args: a, content: ast::Sent::Sentences(s)},
+  <t:Type> <n:Var> <a:TypeIdBlock> ";" => 
+    ast::Function{ret_type: t, name: n, args: a, content: ast::Sent::Void},
+};
+
+TypeIdBlock: Vec<(ast::Type, String)> = {
+  "(" ")" => Vec::new(),
+  "(" "void" ")" => Vec::new(),
+  "(" <TypeIds> ")",
+};
+
+TypeIds: Vec<(ast::Type, String)> = {
+  <TypeId> => vec![<>],
+  <v:TypeIds> "," <s:TypeId> => {
+    let mut v = v;
+    v.push(s);
+    v
+  }
+};
+
+TypeId: (ast::Type, String) = <t:Type> <v:Var> => (t, v);
+
+ExpressionBlock: Vec<ast::Expr> = {
+  "(" ")" => Vec::new(),
+  "(" <Expressions> ")",
+};
+
+Expressions: Vec<ast::Expr> = {
+  <Expression> => vec![<>],
+  <v:Expressions> "," <s:Expression> => {
+    let mut v = v;
+    v.push(s);
+    v
+  }
+};
+
+pub Sentence: ast::Sent = {
+  ";" => ast::Sent::Void,
+  <Expression> ";" => ast::Sent::Expression(Box::new(<>)),
+  <t:Type> <v:Var> ";" => ast::Sent::Decl(t, v),
+  <t:Type> <v:Var> "=" <e:Expression> ";" => ast::Sent::DeclAssign(t, v, Box::new(e)),
+  <SentenceBlock> => ast::Sent::Sentences(<>),
+  "return" <Expression> ";" => ast::Sent::Return(Box::new(<>)),
+  "return" ";" => ast::Sent::Return(Box::new(ast::Expr::Void)),
+  "if" "(" <e:Expression> ")" <s1:Sentence> "else" <s2:Sentence> => 
+    ast::Sent::IfElse(Box::new(e), Box::new(s1), Box::new(s2)),
+};
+
+SentenceBlock: Vec<ast::Sent> = {
+  "{" "}" => Vec::<ast::Sent>::new(),
+  "{" <Sentences> "}",
+};
+
+Sentences: Vec<ast::Sent> = {
+  <Sentence> => vec![<>],
+  <v:Sentences> <s:Sentence> => {
+    let mut v = v;
+    v.push(s);
+    v
+  }
+};
+
+Expression: ast::Expr = {
+  <v:Var> "=" <e:Expression> => ast::Expr::Assign(v, Box::new(e)),
+  Condition,
+};
+
+Condition: ast::Expr = {
+  <e1:Condition> "==" <e2:Arith> => ast::Expr::Op2(ast::Op2::Eq, Box::new(e1), Box::new(e2)),
+  <e1:Condition> "!=" <e2:Arith> => ast::Expr::Op2(ast::Op2::Ne, Box::new(e1), Box::new(e2)),
+  <e1:Condition> "<" <e2:Arith> => ast::Expr::Op2(ast::Op2::Lt, Box::new(e1), Box::new(e2)),
+  <e1:Condition> "<=" <e2:Arith> => ast::Expr::Op2(ast::Op2::Le, Box::new(e1), Box::new(e2)),
+  Arith,
+}
+
+Arith: ast::Expr = {
+  <e1:Arith> "+" <e2:Factor> => ast::Expr::Op2(ast::Op2::Add, Box::new(e1), Box::new(e2)),
+  <e1:Arith> "-" <e2:Factor> => ast::Expr::Op2(ast::Op2::Sub, Box::new(e1), Box::new(e2)),
+  Factor,
+};
+
+Factor: ast::Expr = {
+  <e1:Factor> "*" <e2:Single> => ast::Expr::Op2(ast::Op2::Mul, Box::new(e1), Box::new(e2)),
+  <e1:Factor> "/" <e2:Single> => ast::Expr::Op2(ast::Op2::Div, Box::new(e1), Box::new(e2)),
+  Single,
+};
+
+Single: ast::Expr = {
+  "-" <Atomic> => ast::Expr::Op1(ast::Op1::Neg, Box::new(<>)),
+  Atomic,
+}
+
+Atomic: ast::Expr = {
+  <r"[0-9]+"> => ast::Expr::Int(i32::from_str(<>).unwrap()),
+  <r"([0-9]+\.[0-9]*|[0-9]*\.[0-9]+)"> => ast::Expr::Float(f32::from_str(<>).unwrap()),
+  <r"[a-zA-Z_][a-zA-Z_0-9]*"> => ast::Expr::Var(String::from(<>)),
+  <n:Var> <b:ExpressionBlock> => ast::Expr::Call(n, b),
+  "(" <Expression> ")",
+};
+
+Var: String = <r"[a-zA-Z_][a-zA-Z_0-9]*"> => String::from(<>);
+
+Type: ast::Type = {
+  "void" => ast::Type::Void,
+  "int" => ast::Type::Int,
+  "float" => ast::Type::Float,
+}
+
+// skip comments
+match {
+  r"\s*" => { }, // The default whitespace skipping is disabled an `ignore pattern` is specified
+  r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
+  r"/\*([^\*]*\*+[^\*/])*([^\*]*\*+|[^\*])*\*/" => { },  // Skip `/* comments */`
+  _
+}
