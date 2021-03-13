@@ -5,4 +5,5 @@
 simulator/simulator
 *.sim.s
 output
+__pycache__
 
