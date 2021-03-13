@@ -99,10 +99,10 @@ fn flatten(v: Vec<Inst>) -> Vec<Inst> {
   let mut res = Vec::new();
   for i in v.into_iter() {
     match i {
-      Inst::IfElse(x, mut s, mut t) => {
-        res.append(&mut s);
-        res.append(&mut t);
-        res.push(Inst::IfElse(x, s, t));
+      Inst::IfElse(x, s, t) => {
+        res.append(&mut flatten(s));
+        res.append(&mut flatten(t));
+        res.push(Inst::IfElse(x, Vec::new(), Vec::new()));
       },
       x => res.push(x),
     }
