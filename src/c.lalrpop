@@ -80,14 +80,22 @@ Sentences: Vec<ast::Sent> = {
 
 Expression: ast::Expr = {
   <v:Var> "=" <e:Expression> => ast::Expr::Assign(v, Box::new(e)),
-  Condition,
+  ConditionEq,
 };
 
+ConditionEq: ast::Expr = {
+  <e1:ConditionEq> "==" <e2:Condition> => 
+    ast::Expr::Op2(ast::Op2::Eq, Box::new(e1), Box::new(e2)),
+  <e1:ConditionEq> "!=" <e2:Condition> => 
+    ast::Expr::Op2(ast::Op2::Ne, Box::new(e1), Box::new(e2)),
+  Condition,
+}
+
 Condition: ast::Expr = {
-  <e1:Condition> "==" <e2:Arith> => ast::Expr::Op2(ast::Op2::Eq, Box::new(e1), Box::new(e2)),
-  <e1:Condition> "!=" <e2:Arith> => ast::Expr::Op2(ast::Op2::Ne, Box::new(e1), Box::new(e2)),
   <e1:Condition> "<" <e2:Arith> => ast::Expr::Op2(ast::Op2::Lt, Box::new(e1), Box::new(e2)),
   <e1:Condition> "<=" <e2:Arith> => ast::Expr::Op2(ast::Op2::Le, Box::new(e1), Box::new(e2)),
+  <e1:Condition> ">" <e2:Arith> => ast::Expr::Op2(ast::Op2::Lt, Box::new(e2), Box::new(e1)),
+  <e1:Condition> ">=" <e2:Arith> => ast::Expr::Op2(ast::Op2::Le, Box::new(e2), Box::new(e1)),
   Arith,
 }
 
