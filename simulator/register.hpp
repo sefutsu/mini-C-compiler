@@ -55,19 +55,12 @@ class Register{
       regs[s] = zero;
     }
   }
-  void is_set(std::istream &ist){
-    is = &ist;
-  }
-  void os_set(std::ostream &ost){
-    os = &ost;
-  }
   string read_token(){
     string res;
-    (*is) >> res;
+    std::cin >> res;
     return res;
   }
   void print_int(int b){
-    (*os) << b;
     std::cout << "out: " << b << std::endl;
   }
   int geti(string name){

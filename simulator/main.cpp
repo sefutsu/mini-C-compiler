@@ -42,17 +42,13 @@ void exec(){
 
 int main(int argc, char *argv[]){
   std::ifstream sim_file(argv[1], std::ios::in);
-  std::ifstream input_file(argv[2], std::ios::in);
-  std::ofstream output_file(argv[3], std::ios::out);
-  CPU::regs.is_set(input_file);
-  CPU::regs.os_set(output_file);
   CPU::imem.initialize(sim_file);
   sim_file.close();
   CPU::dmem.set_size((1 << DATA_MEM_WIDTH));
   CPU::regs.seti("$sp", (1 << DATA_MEM_WIDTH));
   CPU::regs.seti("$ra", -1);
 
-  if(argc <= 4){
+  if(argc <= 2){
     exec_all();
   }else{
     exec();

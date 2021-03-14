@@ -1,4 +1,5 @@
 void print_int(int x);
+int read_int(void);
 
 int fib(int n) {
   if(n < 2) return n;
@@ -8,7 +9,8 @@ int fib(int n) {
 }
 
 void main(void) {
-  int x = fib(10);
+  int n = read_int();
+  int x = fib(n);
   print_int(x);
   return;
 }

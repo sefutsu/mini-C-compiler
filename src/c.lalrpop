@@ -104,7 +104,9 @@ Factor: ast::Expr = {
 };
 
 Single: ast::Expr = {
-  "-" <Atomic> => ast::Expr::Op1(ast::Op1::Neg, Box::new(<>)),
+  "-" <Single> => ast::Expr::Op1(ast::Op1::Neg, Box::new(<>)),
+  "(" "int" ")" <Single> => ast::Expr::Op1(ast::Op1::Ftoi, Box::new(<>)),
+  "(" "float" ")" <Single> => ast::Expr::Op1(ast::Op1::Itof, Box::new(<>)),
   Atomic,
 }
 

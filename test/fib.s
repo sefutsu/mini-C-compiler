@@ -2,34 +2,34 @@
 fib:
   sub $sp, $sp, 9
   sw $ra, $sp, 0
-  mv $a13, 2
-  slt $a8, $a0, $a13
-  sw $a8, $sp, 1
-  sw $a0, $sp, 4
-  beq $a8, $zero, .else.1
-  lw $a0, $sp, 4
+  mv $a2, 2
+  slt $a3, $a0, $a2
+  sw $a0, $sp, 5
+  sw $a3, $sp, 2
+  beq $a3, $zero, .else.1
+  lw $a0, $sp, 5
   jmp :.fib.end
   jmp :.cont.2
 .else.1:
-  mv $a4, 1
-  lw $a3, $sp, 4
-  sub $a12, $a3, $a4
-  sw $a9, $sp, 7
-  sw $a3, $sp, 4
-  sw $a12, $sp, 5
-  mv $a0, $a12
+  mv $a7, 1
+  lw $a11, $sp, 5
+  sub $a9, $a11, $a7
+  sw $a9, $sp, 3
+  sw $a3, $sp, 7
+  sw $a11, $sp, 5
+  mv $a0, $a9
   jal :fib
-  mv $a15, 2
-  lw $a9, $sp, 4
-  sub $a12, $a9, $a15
-  sw $a12, $sp, 6
+  mv $a3, 2
+  lw $a1, $sp, 5
+  sub $a14, $a1, $a3
+  sw $a14, $sp, 6
   sw $a0, $sp, 7
-  sw $a10, $sp, 8
-  mv $a0, $a12
+  sw $a11, $sp, 8
+  mv $a0, $a14
   jal :fib
-  lw $a6, $sp, 7
-  add $a1, $a6, $a0
-  mv $a0, $a1
+  lw $a7, $sp, 7
+  add $a3, $a7, $a0
+  mv $a0, $a3
   jmp :.fib.end
 .cont.2:
 .fib.end:
@@ -37,17 +37,17 @@ fib:
   add $sp, $sp, 9
   ret
 main:
-  sub $sp, $sp, 4
+  sub $sp, $sp, 5
   sw $ra, $sp, 0
-  mv $a9, 10
-  sw $a9, $sp, 1
-  sw $a12, $sp, 3
-  mv $a0, $a9
+  sw $a0, $sp, 2
+  jal :read_int
+  sw $a0, $sp, 2
+  sw $a6, $sp, 4
   jal :fib
-  sw $a0, $sp, 3
+  sw $a0, $sp, 4
   jal :print_int
   jmp :.main.end
 .main.end:
   lw $ra, $sp, 0
-  add $sp, $sp, 4
+  add $sp, $sp, 5
   ret
