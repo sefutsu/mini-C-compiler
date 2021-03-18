@@ -6,6 +6,7 @@ mod util;
 mod ast;
 mod typing;
 mod knormal;
+mod alive;
 mod reg_alloc;
 mod virtuals;
 mod asm;
@@ -20,7 +21,7 @@ fn compile(s: ast::Program) -> Result<asm::Program, String> {
   let virtualized = knormaled.to_virtual();
   eprintln!("Virtualized: {:#?}", virtualized);
   let assembly = virtualized.to_asm();
-  eprintln!("Assembly: {:#?}\n\n", assembly);
+  // eprintln!("Assembly: {:#?}\n\n", assembly);
   Ok(assembly)
 }
 

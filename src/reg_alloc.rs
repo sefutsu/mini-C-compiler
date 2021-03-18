@@ -1,5 +1,6 @@
 use crate::knormal;
 use crate::virtuals::*;
+use crate::alive::*;
 use std::collections::HashMap;
 
 fn all_regs() -> Vec<Register> {
@@ -177,47 +178,6 @@ impl RegAlloc {
   }
 }
 
-// 変数が生きているかどうか判定
-fn is_alive(x: &str, program: &[knormal::Sent]) -> bool {
-  for sent in program.iter() {
-    if sent.is_alive(x) {
-      return true;
-    }
-  }
-  false
-}
-
-impl knormal::Expr {
-  fn is_alive(&self, x: &str) -> bool {
-    match self {
-      Self::Op1(_, y) => (*x == *y),
-      Self::Op2(_, y, z) => (*x == *y) || (*x == *z),
-      Self::Var(y) => (*x == *y),
-      Self::Call(_, args) => {
-        for arg in args {
-          if *arg == *x {
-            return true;
-          }
-        }
-        false
-      },
-      _ => false,
-    }
-  }
-}
-
-impl knormal::Sent {
-  fn is_alive(&self, x: &str) -> bool {
-    match self {
-      Self::Assign(_, e) => e.is_alive(x),
-      Self::IfElse(y, s, t) => 
-        (*x == *y) || is_alive(x, s) || is_alive(x, t),
-      Self::Return(Some(y)) => (*x == *y),
-      _ => false,
-    }
-  }
-}
-
 fn sents_to_virtual(program: Vec<knormal::Sent>, alloc: &mut RegAlloc) -> Vec<Inst> {
   let mut insts: Vec<Inst> = Vec::new();
   for (i, sent) in program.clone().into_iter().enumerate() {
@@ -261,7 +221,7 @@ impl knormal::Sent {
             insts.push(Inst::Op2(r, op, ry, rz));
           },
           knormal::Expr::Call(f, args) => {
-            let mut v = alloc.save_all_alives(program);
+            let mut v = alloc.save_all_alives(&program[1..]);
             insts.append(&mut v);
             let mut v = alloc.set_arguments(args);
             insts.append(&mut v);
