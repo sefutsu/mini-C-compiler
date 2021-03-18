@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 fn all_regs() -> Vec<Register> {
   vec![
-    "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10", "a11", "a12", "a13", "a14", "a15"
+    "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"//, "a8", "a9", "a10", "a11", "a12", "a13", "a14", "a15"
   ]
 }
 
@@ -163,6 +163,11 @@ impl RegAlloc {
       }
     }
   }
+  fn alloc_arguments(&mut self, args: Vec<String>) {
+    for (x, r) in args.into_iter().zip(all_regs()) {
+      self.alloc_reg(&x, r);
+    }
+  }
   fn set_arguments(&mut self, args: Vec<String>) -> Vec<Inst> {
     let mut res = Vec::new();
     for (x, r) in args.into_iter().zip(all_regs()) {
@@ -171,9 +176,23 @@ impl RegAlloc {
     }
     res
   }
-  fn alloc_arguments(&mut self, args: Vec<String>) {
-    for (x, r) in args.into_iter().zip(all_regs()) {
-      self.alloc_reg(&x, r);
+  fn set_arguments_and_save(&mut self, args: Vec<String>) -> Vec<Inst> {
+    let mut res = Vec::new();
+    let mut it = args.into_iter().zip(all_regs());
+    loop {
+      match it.next() {
+        None => return res,
+        Some((x, r)) => {
+          let cont = self.get_reg_content(r);
+          if let Some(y) = cont {
+            if it.clone().any(|a| a.0 == y) {
+              res.push(Inst::Save(r, y.to_string()));
+            }
+          }
+          let mut v = self.alloc_reg_and_restore(&x, r);
+          res.append(&mut v);
+        }
+      }
     }
   }
 }
@@ -182,7 +201,7 @@ fn sents_to_virtual(program: Vec<knormal::Sent>, alloc: &mut RegAlloc) -> Vec<In
   let mut insts: Vec<Inst> = Vec::new();
   for (i, sent) in program.clone().into_iter().enumerate() {
     let prog: &[knormal::Sent] = &program[i..];
-
+    // eprintln!("{:#?}", alloc);
     let mut v = sent.to_virtual(alloc, prog);
     insts.append(&mut v);
   }
@@ -233,10 +252,9 @@ impl knormal::Sent {
             insts.push(Inst::Op2(r, op, ry, rz));
           },
           knormal::Expr::Call(f, args) => {
-            eprintln!("{} {:?}", f, alloc.find_all_alives(&program[1..]));
             let mut v = alloc.save_all_alives(&program[1..]);
             insts.append(&mut v);
-            let mut v = alloc.set_arguments(args);
+            let mut v = alloc.set_arguments_and_save(args);
             insts.append(&mut v);
             insts.push(Inst::Jal(f));
             alloc.reset();
