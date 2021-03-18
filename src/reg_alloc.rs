@@ -1,6 +1,6 @@
 use crate::knormal;
 use crate::virtuals::*;
-use crate::alive::*;
+use crate::alive;
 use std::collections::HashMap;
 
 fn all_regs() -> Vec<Register> {
@@ -65,7 +65,7 @@ impl RegAlloc {
   fn find_all_alives(&self, program:&[knormal::Sent]) -> Vec<String> {
     let mut res: Vec<String> = Vec::new();
     for (v, _) in self.var.iter() {
-      if is_alive(v, program) {
+      if alive::is_alive(v, program) {
         res.push(v.clone());
       }
     }
@@ -75,7 +75,7 @@ impl RegAlloc {
   fn save_all_alives(&self, program: &[knormal::Sent]) -> Vec<Inst> {
     let mut res: Vec<Inst> = Vec::new();
     for (v, r) in self.var.iter() {
-      if is_alive(v, program) {
+      if alive::is_alive(v, program) {
         res.push(Inst::Save(r, v.clone()));
       }
     }
@@ -198,22 +198,34 @@ impl knormal::Sent {
     let mut insts: Vec<Inst> = Vec::new();    
     match self {
       knormal::Sent::Assign(x, e) => {
-        let (r, mut v) = alloc.alloc_any_reg(&x);
-        insts.append(&mut v);
         match e {
-          knormal::Expr::Int(i) => insts.push(Inst::Li(r, i)),
-          knormal::Expr::Float(f) => insts.push(Inst::FLi(r, f)),
+          knormal::Expr::Int(i) => {
+            let (r, mut v) = alloc.alloc_any_reg(&x);
+            insts.append(&mut v);
+            insts.push(Inst::Li(r, i));
+          },
+          knormal::Expr::Float(f) => {
+            let (r, mut v) = alloc.alloc_any_reg(&x);
+            insts.append(&mut v);
+            insts.push(Inst::FLi(r, f));
+          },
           knormal::Expr::Var(y) => {
+            let (r, mut v) = alloc.alloc_any_reg(&x);
+            insts.append(&mut v);
             let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y);
             insts.append(&mut v);
             insts.push(Inst::Mv(r, ry));
           },
           knormal::Expr::Op1(op, y) => {
+            let (r, mut v) = alloc.alloc_any_reg(&x);
+            insts.append(&mut v);
             let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y);
             insts.append(&mut v);
             insts.push(Inst::Op1(r, op, ry));
           },
           knormal::Expr::Op2(op, y, z) => {
+            let (r, mut v) = alloc.alloc_any_reg(&x);
+            insts.append(&mut v);
             let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y);
             insts.append(&mut v);
             let (rz, mut v) = alloc.alloc_any_reg_and_restore(&z);
@@ -221,6 +233,7 @@ impl knormal::Sent {
             insts.push(Inst::Op2(r, op, ry, rz));
           },
           knormal::Expr::Call(f, args) => {
+            eprintln!("{} {:?}", f, alloc.find_all_alives(&program[1..]));
             let mut v = alloc.save_all_alives(&program[1..]);
             insts.append(&mut v);
             let mut v = alloc.set_arguments(args);
