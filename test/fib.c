@@ -8,9 +8,9 @@ int fib(int n) {
   }
 }
 
-void main(void) {
+int main(void) {
   int n = read_int();
   int x = fib(n);
   print_int(x);
-  return;
+  return 0;
 }
