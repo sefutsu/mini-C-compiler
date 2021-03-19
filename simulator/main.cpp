@@ -20,7 +20,6 @@ void exec_all(){
   cout << "スタック使用量: " << (1 << DATA_MEM_WIDTH) - minsp << endl;
   cout << "ヒープ使用量: " << maxhp << endl;
   cout << "メモリ使用量: " << maxhp + (1 << DATA_MEM_WIDTH) - minsp << endl;
-  CPU::regs.dumpall();
 }
 
 void exec(){
