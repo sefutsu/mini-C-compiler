@@ -87,9 +87,8 @@ impl RegAlloc {
   }
   // 生きていないレジスタを探す。ないなら次の命令に使わないレジスタを探す
   // (レジスタ, 退避が必要かどうか)
-  fn find_proper_reg(&self, x: &str, program: &[knormal::Sent]) -> (Register, bool) {
+  fn find_proper_reg(&self, x: &str, program: &[knormal::Sent], forbidden: HashSet<String>) -> (Register, bool) {
     let alives = alive::free_variable(program);
-    let forbidden = alive::free_variable(&program[0..1]);
     match target(x, program) {
       Some(r) => match self.get_reg_content(r) {
         Some(y) if forbidden.contains(y) => (),
@@ -158,7 +157,7 @@ impl RegAlloc {
     match self.find_var(x) {
       Some(r) => (r, Vec::new()), // すでに割り当てられていた
       None => {
-        let (r, b) = self.find_proper_reg(x, program);
+        let (r, b) = self.find_proper_reg(x, program, HashSet::new());
         let mut insts = Vec::new();
         if b {
           let y = self.get_reg_content(r).unwrap();
@@ -174,7 +173,23 @@ impl RegAlloc {
     match self.find_var(x) {
       Some(r) => (r, Vec::new()), // すでに割り当てられていた
       None => {
-        let (r, b) = self.find_proper_reg(x, program);
+        let (r, b) = self.find_proper_reg(x, program, HashSet::new());
+        let mut insts = Vec::new();
+        if b {
+          let y = self.get_reg_content(r).unwrap();
+          insts.push(Inst::Save(r, y.to_string()));
+        }
+        self.alloc_reg(x, r);
+        insts.push(Inst::Restore(r, x.to_string()));
+        (r, insts)
+      }
+    }
+  }
+  fn alloc_any_reg_and_restore_without(&mut self, x: &str, program: &[knormal::Sent], forbidden: HashSet<String>) -> (Register, Vec<Inst>) {
+    match self.find_var(x) {
+      Some(r) => (r, Vec::new()), // すでに割り当てられていた
+      None => {
+        let (r, b) = self.find_proper_reg(x, program, forbidden);
         let mut insts = Vec::new();
         if b {
           let y = self.get_reg_content(r).unwrap();
@@ -260,16 +275,17 @@ impl knormal::Sent {
             insts.push(Inst::Op1(r, op, ry));
           },
           knormal::Expr::Op2(op, y, z) => {
-            let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y, program);
+            let (ry, mut v) = alloc.alloc_any_reg_and_restore_without(
+              &y, program, vec![z.to_string()].into_iter().collect());
             insts.append(&mut v);
-            let (rz, mut v) = alloc.alloc_any_reg_and_restore(&z, program);
+            let (rz, mut v) = alloc.alloc_any_reg_and_restore_without(
+              &z, program, vec![z.to_string()].into_iter().collect());
             insts.append(&mut v);
             let (r, mut v) = alloc.alloc_any_reg(&x, program);
             insts.append(&mut v);
             insts.push(Inst::Op2(r, op, ry, rz));
           },
           knormal::Expr::Call(f, args) => {
-            eprintln!("{:#?}: {:#?}", program[0], alloc.var);
             let mut v = alloc.save_all_alives(&program[1..]);
             insts.append(&mut v);
             let mut v = alloc.set_arguments(args);
@@ -277,7 +293,6 @@ impl knormal::Sent {
             insts.push(Inst::Jal(f));
             alloc.reset();
             alloc.alloc_reg(&x, RET_REG);
-            eprintln!("{:#?}", alloc.var);
           }
         }
       },
