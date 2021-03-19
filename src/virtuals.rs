@@ -71,7 +71,12 @@ impl Inst {
       },
       Inst::Jal(s) => vec![asm::Inst::Jal(s)],
       Inst::Ret => vec![asm::Inst::Jmp(label::end(name))],
-      Inst::Save(r, x) => vec![asm::Inst::Sw(asm::Operand::Reg(r), asm::Operand::Sp, asm::Operand::Int(*env.get(&x).unwrap()))],
+      Inst::Save(r, x) => {
+        match env.get(&x) {
+          None => Vec::new(),
+          Some(i) => vec![asm::Inst::Sw(asm::Operand::Reg(r), asm::Operand::Sp, asm::Operand::Int(*i))]
+        }
+      },
       Inst::Restore(r, x) => vec![asm::Inst::Lw(asm::Operand::Reg(r), asm::Operand::Sp, asm::Operand::Int(*env.get(&x).unwrap()))],
       Inst::IfElse(r, v, w) => {
         let mut res = Vec::new();
@@ -116,7 +121,7 @@ impl Function {
     let mut ss: i32 = 1;
     for ist in flatten(self.content.clone()).iter() {
       match ist {
-        Inst::Save(_, x) => {
+        Inst::Restore(_, x) => {
           env.insert(x.clone(), ss);
           ss += 1;
         },
