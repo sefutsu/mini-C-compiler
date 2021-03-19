@@ -9,6 +9,39 @@ fn all_regs() -> Vec<Register> {
   ]
 }
 
+// target
+fn target_opt(x: &str, program: &[knormal::Sent]) -> Option<Option<Register>> {
+  for sent in program.iter() {
+    match sent {
+      knormal::Sent::Assign(_, e) => match e {
+        knormal::Expr::Call(_, args) => {
+          for (a, r) in args.iter().zip(all_regs()) {
+            if *x == *a { return Some(Some(r)) }
+          }
+          return Some(None)
+        },
+        _ => (),
+      },
+      knormal::Sent::IfElse(_, s, t) => match (target_opt(x, s), target_opt(x, t)) {
+        (Some(o), _) => return Some(o),
+        (_, Some(o)) => return Some(o),
+        _ => (),
+      },
+      knormal::Sent::Return(Some(y)) => {
+        if *x == *y { return Some(Some("a0")) } 
+      },
+      _ => (),
+    }
+  }
+  None
+}
+fn target(x: &str, program: &[knormal::Sent]) -> Option<Register> {
+  match target_opt(x, program) {
+    None => None,
+    Some(o) => o,
+  }
+}
+
 #[derive(Debug, Clone)]
 struct RegAlloc {
   var: HashMap<String, Register>,
@@ -43,9 +76,9 @@ impl RegAlloc {
     for (r, o) in self.reg.iter() {
       match o {
         None => return Some(r),
-        Some(x) => match s.get(x) {
-          None => return Some(r),
-          Some(_) => (),
+        Some(x) => match s.contains(x) {
+          false => return Some(r),
+          true => (),
         }
       }
     }
@@ -53,12 +86,16 @@ impl RegAlloc {
   }
   // 生きていないレジスタを探す。ないなら次の命令に使わないレジスタを探す
   // (レジスタ, 退避が必要かどうか)
-  fn find_proper_reg(&self, program: &[knormal::Sent]) -> (Register, bool) {
-    match self.find_reg_without(&alive::free_variable(program)) {
-      Some(r) => (r, false),
-      None => match self.find_reg_without(&alive::free_variable(&program[0..1])) {
-        Some(r) => (r, true),
-        None => panic!("Cannot alloc register to instruction {:#?}", program[0]),
+  fn find_proper_reg(&self, x: &str, program: &[knormal::Sent]) -> (Register, bool) {
+    let alives = alive::free_variable(program);
+    match target(x, program) {
+      Some(r) => (r, alives.contains(x)),
+      None => match self.find_reg_without(&alives) {
+        Some(r) => (r, false),
+        None => match self.find_reg_without(&alive::free_variable(&program[0..1])) {
+          Some(r) => (r, true),
+          None => panic!("Cannot alloc register to instruction {:#?}", program[0]),
+        }
       }
     }
   }
@@ -113,7 +150,7 @@ impl RegAlloc {
     match self.find_var(x) {
       Some(r) => (r, Vec::new()), // すでに割り当てられていた
       None => {
-        let (r, b) = self.find_proper_reg(program);
+        let (r, b) = self.find_proper_reg(x, program);
         let mut insts = Vec::new();
         if b {
           let y = self.get_reg_content(r).unwrap();
@@ -129,7 +166,7 @@ impl RegAlloc {
     match self.find_var(x) {
       Some(r) => (r, Vec::new()), // すでに割り当てられていた
       None => {
-        let (r, b) = self.find_proper_reg(program);
+        let (r, b) = self.find_proper_reg(x, program);
         let mut insts = Vec::new();
         if b {
           let y = self.get_reg_content(r).unwrap();
