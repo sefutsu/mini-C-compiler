@@ -1,7 +1,7 @@
 use crate::knormal;
 use crate::virtuals::*;
 use crate::alive;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 fn all_regs() -> Vec<Register> {
   vec![
@@ -15,7 +15,6 @@ struct RegAlloc {
   reg: HashMap<Register, Option<String>>,
 }
 
-#[allow(dead_code)]
 impl RegAlloc {
   fn new() -> Self {
     let mut regs: HashMap<Register, Option<String>> = HashMap::new();
@@ -40,16 +39,28 @@ impl RegAlloc {
   fn get_reg_content(&self, r: Register) -> Option<&str> {
     self.reg.get(r).unwrap().as_ref().map(|x| &x[..])
   }
-  fn find_empty_reg(&self) -> Option<Register> {
+  fn find_reg_without(&self, s: &HashSet<String>) -> Option<Register> {
     for (r, o) in self.reg.iter() {
-      if let None = o {
-        return Some(r)
+      match o {
+        None => return Some(r),
+        Some(x) => match s.get(x) {
+          None => return Some(r),
+          Some(_) => (),
+        }
       }
     }
     None
   }
-  fn find_any_reg(&self) -> Register {
-    self.reg.iter().next().unwrap().0
+  // 生きていないレジスタを探す。ないなら次の命令に使わないレジスタを探す
+  // (レジスタ, 退避が必要かどうか)
+  fn find_proper_reg(&self, program: &[knormal::Sent]) -> (Register, bool) {
+    match self.find_reg_without(&alive::free_variable(program)) {
+      Some(r) => (r, false),
+      None => match self.find_reg_without(&alive::free_variable(&program[0..1])) {
+        Some(r) => (r, true),
+        None => panic!("Can not alloc register to instruction {:#?}", program[0]),
+      }
+    }
   }
   fn make_reg_empty(&mut self, r: Register) {
     match self.get_reg_content(r) {
@@ -61,21 +72,12 @@ impl RegAlloc {
       None => (),
     }
   }
-  // 生きている変数のリストを返す
-  fn find_all_alives(&self, program:&[knormal::Sent]) -> Vec<String> {
-    let mut res: Vec<String> = Vec::new();
-    for (v, _) in self.var.iter() {
-      if alive::is_alive(v, program) {
-        res.push(v.clone());
-      }
-    }
-    res
-  }
   // 生きている変数を退避する命令列を返す
   fn save_all_alives(&self, program: &[knormal::Sent]) -> Vec<Inst> {
     let mut res: Vec<Inst> = Vec::new();
+    let alives: HashSet<String> = alive::free_variable(program);
     for (v, r) in self.var.iter() {
-      if alive::is_alive(v, program) {
+      if let Some(_) = alives.get(v) {
         res.push(Inst::Save(r, v.clone()));
       }
     }
@@ -85,25 +87,6 @@ impl RegAlloc {
   fn alloc_reg(&mut self, x: &str, r: Register) {
     self.var.insert(x.to_string(), r);
     self.reg.insert(r, Some(x.to_string()));
-  }
-  // xにrを割り当てて溢れた変数をSaveする
-  fn alloc_reg_and_save(&mut self, x: &str, r: Register) -> Vec<Inst> {
-    match self.get_reg_content(r) {
-      None => {
-        self.alloc_reg(x, r);
-        Vec::new()
-      },
-      Some(y) => {
-        if x == y {
-          Vec::new()
-        } else {
-          let y = y.to_string();
-          self.var.remove(&y.to_string());
-          self.alloc_reg(x, r);
-          vec![Inst::Save(r, y.to_string())]
-        }
-      },
-    }
   }
   // xにrを割り当てて必要に応じてMove, Restoreする(rに入っていたものの退避はしない)
   fn alloc_reg_and_restore(&mut self, x: &str, r: Register) -> Vec<Inst> {
@@ -126,55 +109,44 @@ impl RegAlloc {
     }
   }
   // 変数xにレジスタを割り当てる
-  fn alloc_any_reg(&mut self, x: &str) -> (Register, Vec<Inst>) {
+  fn alloc_any_reg(&mut self, x: &str, program: &[knormal::Sent]) -> (Register, Vec<Inst>) {
     match self.find_var(x) {
       Some(r) => (r, Vec::new()), // すでに割り当てられていた
       None => {
-        match self.find_empty_reg() {
-          Some(r) => { // 空いているレジスタがあった
-            self.alloc_reg(x, r);
-            (r, Vec::new())
-          },
-          None => { // 空いていなければ任意のレジスタに割り当てる
-            let r = self.find_any_reg();
-            (r, self.alloc_reg_and_save(x, r))
-          }
+        let (r, b) = self.find_proper_reg(program);
+        let mut insts = Vec::new();
+        if b {
+          let y = self.get_reg_content(r).unwrap();
+          insts.push(Inst::Save(r, y.to_string()));
         }
+        self.alloc_reg(x, r);
+        (r, insts)
       }
     }
   }
   // 変数xにレジスタを割り当て必要ならRestoreする
-  fn alloc_any_reg_and_restore(&mut self, x: &str) -> (Register, Vec<Inst>) {
+  fn alloc_any_reg_and_restore(&mut self, x: &str, program: &[knormal::Sent]) -> (Register, Vec<Inst>) {
     match self.find_var(x) {
       Some(r) => (r, Vec::new()), // すでに割り当てられていた
       None => {
-        match self.find_empty_reg() {
-          Some(r) => { // 空いているレジスタがあった
-            self.alloc_reg(x, r);
-            (r, vec![Inst::Restore(r, x.to_string())])
-          },
-          None => { // 空いていなければ任意のレジスタに割り当てる
-            let r = self.find_any_reg();
-            let mut ist = self.alloc_reg_and_save(x, r);
-            ist.push(Inst::Restore(r, x.to_string()));
-            (r, ist)
-          },
+        let (r, b) = self.find_proper_reg(program);
+        let mut insts = Vec::new();
+        if b {
+          let y = self.get_reg_content(r).unwrap();
+          insts.push(Inst::Save(r, y.to_string()));
         }
+        self.alloc_reg(x, r);
+        insts.push(Inst::Restore(r, x.to_string()));
+        (r, insts)
       }
     }
   }
+
+  // 引数の割り当て
   fn alloc_arguments(&mut self, args: Vec<String>) {
     for (x, r) in args.into_iter().zip(all_regs()) {
       self.alloc_reg(&x, r);
     }
-  }
-  fn set_arguments(&mut self, args: Vec<String>) -> Vec<Inst> {
-    let mut res = Vec::new();
-    for (x, r) in args.into_iter().zip(all_regs()) {
-      let mut v = self.alloc_reg_and_restore(&x, r);
-      res.append(&mut v);
-    }
-    res
   }
   fn set_arguments_and_save(&mut self, args: Vec<String>) -> Vec<Inst> {
     let mut res = Vec::new();
@@ -201,7 +173,6 @@ fn sents_to_virtual(program: Vec<knormal::Sent>, alloc: &mut RegAlloc) -> Vec<In
   let mut insts: Vec<Inst> = Vec::new();
   for (i, sent) in program.clone().into_iter().enumerate() {
     let prog: &[knormal::Sent] = &program[i..];
-    // eprintln!("{:#?}", alloc);
     let mut v = sent.to_virtual(alloc, prog);
     insts.append(&mut v);
   }
@@ -219,35 +190,35 @@ impl knormal::Sent {
       knormal::Sent::Assign(x, e) => {
         match e {
           knormal::Expr::Int(i) => {
-            let (r, mut v) = alloc.alloc_any_reg(&x);
+            let (r, mut v) = alloc.alloc_any_reg(&x, program);
             insts.append(&mut v);
             insts.push(Inst::Li(r, i));
           },
           knormal::Expr::Float(f) => {
-            let (r, mut v) = alloc.alloc_any_reg(&x);
+            let (r, mut v) = alloc.alloc_any_reg(&x, program);
             insts.append(&mut v);
             insts.push(Inst::FLi(r, f));
           },
           knormal::Expr::Var(y) => {
-            let (r, mut v) = alloc.alloc_any_reg(&x);
+            let (r, mut v) = alloc.alloc_any_reg(&x, program);
             insts.append(&mut v);
-            let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y);
+            let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y, program);
             insts.append(&mut v);
             insts.push(Inst::Mv(r, ry));
           },
           knormal::Expr::Op1(op, y) => {
-            let (r, mut v) = alloc.alloc_any_reg(&x);
+            let (r, mut v) = alloc.alloc_any_reg(&x, program);
             insts.append(&mut v);
-            let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y);
+            let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y, program);
             insts.append(&mut v);
             insts.push(Inst::Op1(r, op, ry));
           },
           knormal::Expr::Op2(op, y, z) => {
-            let (r, mut v) = alloc.alloc_any_reg(&x);
+            let (r, mut v) = alloc.alloc_any_reg(&x, program);
             insts.append(&mut v);
-            let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y);
+            let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y, program);
             insts.append(&mut v);
-            let (rz, mut v) = alloc.alloc_any_reg_and_restore(&z);
+            let (rz, mut v) = alloc.alloc_any_reg_and_restore(&z, program);
             insts.append(&mut v);
             insts.push(Inst::Op2(r, op, ry, rz));
           },
@@ -263,7 +234,7 @@ impl knormal::Sent {
         }
       },
       knormal::Sent::IfElse(x, s, t) => {
-        let (rx, mut v) = alloc.alloc_any_reg_and_restore(&x);
+        let (rx, mut v) = alloc.alloc_any_reg_and_restore(&x, program);
         insts.append(&mut v);
         let mut v = alloc.save_all_alives(program);
         insts.append(&mut v);
