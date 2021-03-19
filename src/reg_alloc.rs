@@ -58,7 +58,7 @@ impl RegAlloc {
       Some(r) => (r, false),
       None => match self.find_reg_without(&alive::free_variable(&program[0..1])) {
         Some(r) => (r, true),
-        None => panic!("Can not alloc register to instruction {:#?}", program[0]),
+        None => panic!("Cannot alloc register to instruction {:#?}", program[0]),
       }
     }
   }
@@ -148,7 +148,8 @@ impl RegAlloc {
       self.alloc_reg(&x, r);
     }
   }
-  fn set_arguments_and_save(&mut self, args: Vec<String>) -> Vec<Inst> {
+  // a0からセットしていく。上書きするならSaveしておく
+  fn set_arguments(&mut self, args: Vec<String>) -> Vec<Inst> {
     let mut res = Vec::new();
     let mut it = args.into_iter().zip(all_regs());
     loop {
@@ -200,32 +201,32 @@ impl knormal::Sent {
             insts.push(Inst::FLi(r, f));
           },
           knormal::Expr::Var(y) => {
-            let (r, mut v) = alloc.alloc_any_reg(&x, program);
-            insts.append(&mut v);
             let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y, program);
+            insts.append(&mut v);
+            let (r, mut v) = alloc.alloc_any_reg(&x, program);
             insts.append(&mut v);
             insts.push(Inst::Mv(r, ry));
           },
           knormal::Expr::Op1(op, y) => {
-            let (r, mut v) = alloc.alloc_any_reg(&x, program);
-            insts.append(&mut v);
             let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y, program);
+            insts.append(&mut v);
+            let (r, mut v) = alloc.alloc_any_reg(&x, program);
             insts.append(&mut v);
             insts.push(Inst::Op1(r, op, ry));
           },
           knormal::Expr::Op2(op, y, z) => {
-            let (r, mut v) = alloc.alloc_any_reg(&x, program);
-            insts.append(&mut v);
             let (ry, mut v) = alloc.alloc_any_reg_and_restore(&y, program);
             insts.append(&mut v);
             let (rz, mut v) = alloc.alloc_any_reg_and_restore(&z, program);
+            insts.append(&mut v);
+            let (r, mut v) = alloc.alloc_any_reg(&x, program);
             insts.append(&mut v);
             insts.push(Inst::Op2(r, op, ry, rz));
           },
           knormal::Expr::Call(f, args) => {
             let mut v = alloc.save_all_alives(&program[1..]);
             insts.append(&mut v);
-            let mut v = alloc.set_arguments_and_save(args);
+            let mut v = alloc.set_arguments(args);
             insts.append(&mut v);
             insts.push(Inst::Jal(f));
             alloc.reset();
