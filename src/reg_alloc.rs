@@ -3,6 +3,7 @@ use crate::virtuals::*;
 use crate::alive;
 use std::collections::{HashMap, HashSet};
 
+static RET_REG: &str = "a0";
 fn all_regs() -> Vec<Register> {
   vec![
     "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"//, "a8", "a9", "a10", "a11", "a12", "a13", "a14", "a15"
@@ -28,7 +29,7 @@ fn target_opt(x: &str, program: &[knormal::Sent]) -> Option<Option<Register>> {
         _ => (),
       },
       knormal::Sent::Return(Some(y)) => {
-        if *x == *y { return Some(Some("a0")) } 
+        if *x == *y { return Some(Some(RET_REG)) } 
       },
       _ => (),
     }
@@ -88,14 +89,20 @@ impl RegAlloc {
   // (レジスタ, 退避が必要かどうか)
   fn find_proper_reg(&self, x: &str, program: &[knormal::Sent]) -> (Register, bool) {
     let alives = alive::free_variable(program);
+    let forbidden = alive::free_variable(&program[0..1]);
     match target(x, program) {
-      Some(r) => (r, alives.contains(x)),
-      None => match self.find_reg_without(&alives) {
-        Some(r) => (r, false),
-        None => match self.find_reg_without(&alive::free_variable(&program[0..1])) {
-          Some(r) => (r, true),
-          None => panic!("Cannot alloc register to instruction {:#?}", program[0]),
-        }
+      Some(r) => match self.get_reg_content(r) {
+        Some(y) if forbidden.contains(y) => (),
+        Some(y) => return (r, alives.contains(y)),
+        None => return (r, false),
+      },
+      None => (),
+    }
+    match self.find_reg_without(&alives) {
+      Some(r) => (r, false),
+      None => match self.find_reg_without(&forbidden) {
+        Some(r) => (r, true),
+        None => panic!("Cannot alloc register to instruction {:#?}", program[0]),
       }
     }
   }
@@ -114,7 +121,7 @@ impl RegAlloc {
     let mut res: Vec<Inst> = Vec::new();
     let alives: HashSet<String> = alive::free_variable(program);
     for (v, r) in self.var.iter() {
-      if let Some(_) = alives.get(v) {
+      if alives.contains(v) {
         res.push(Inst::Save(r, v.clone()));
       }
     }
@@ -122,6 +129,13 @@ impl RegAlloc {
   }
   // xにrを割り当てる
   fn alloc_reg(&mut self, x: &str, r: Register) {
+    if let Some(y) = self.get_reg_content(r) {
+      if *x == *y { return } // 割り当て済み
+      self.make_reg_empty(r);
+    }
+    if let Some(s) = self.find_var(x) {
+      self.make_reg_empty(s);
+    }
     self.var.insert(x.to_string(), r);
     self.reg.insert(r, Some(x.to_string()));
   }
@@ -129,19 +143,13 @@ impl RegAlloc {
   fn alloc_reg_and_restore(&mut self, x: &str, r: Register) -> Vec<Inst> {
     match self.find_var(x) {
       None => {
-        self.make_reg_empty(r);
         self.alloc_reg(x, r);
         vec![Inst::Restore(r, x.to_string())]
       },
+      Some(s) if s == r => Vec::new(),
       Some(s) => {
-        if s == r {
-          Vec::new()
-        } else {
-          self.make_reg_empty(r);
-          self.make_reg_empty(s);
-          self.alloc_reg(x, r);
-          vec![Inst::Mv(r, s)]
-        }
+        self.alloc_reg(x, r);
+        vec![Inst::Mv(r, s)]
       }
     }
   }
@@ -261,13 +269,15 @@ impl knormal::Sent {
             insts.push(Inst::Op2(r, op, ry, rz));
           },
           knormal::Expr::Call(f, args) => {
+            eprintln!("{:#?}: {:#?}", program[0], alloc.var);
             let mut v = alloc.save_all_alives(&program[1..]);
             insts.append(&mut v);
             let mut v = alloc.set_arguments(args);
             insts.append(&mut v);
             insts.push(Inst::Jal(f));
             alloc.reset();
-            alloc.alloc_reg(&x, "a0");
+            alloc.alloc_reg(&x, RET_REG);
+            eprintln!("{:#?}", alloc.var);
           }
         }
       },
@@ -291,7 +301,7 @@ impl knormal::Sent {
       },
       knormal::Sent::Return(o) => {
         if let Some(x) = o {
-          insts = alloc.alloc_reg_and_restore(&x, "a0");
+          insts = alloc.alloc_reg_and_restore(&x, RET_REG);
         }
         insts.push(Inst::Ret);
       },

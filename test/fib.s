@@ -10,16 +10,18 @@ fib:
   jmp :.cont.2
 .else.1:
   mv $a1, 1
-  sub $a0, $a0, $a1
+  sub $a6, $a0, $a1
   sw $a0, $sp, 1
+  mv $a0, $a6
   jal :fib
-  mv $a3, 2
+  mv $a7, 2
   lw $a4, $sp, 1
-  sub $a0, $a4, $a3
   sw $a0, $sp, 2
+  sub $a0, $a4, $a7
   jal :fib
-  lw $a6, $sp, 2
-  add $a0, $a6, $a0
+  lw $a3, $sp, 2
+  add $a5, $a3, $a0
+  mv $a0, $a5
   jmp :.fib.end
 .cont.2:
 .fib.end:
