@@ -9,7 +9,7 @@ fn all_regs() -> Vec<Register> {
   ]
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct RegAlloc {
   var: HashMap<String, Register>,
   reg: HashMap<Register, Option<String>>,
@@ -239,13 +239,14 @@ impl knormal::Sent {
         insts.append(&mut v);
         let mut v = alloc.save_all_alives(program);
         insts.append(&mut v);
-        alloc.reset();
-        let mut sv = sents_to_virtual(s, alloc);
+
+        let mut new_alloc = alloc.clone();
+        let mut sv = sents_to_virtual(s, &mut new_alloc);
         let mut v = alloc.save_all_alives(&program[1..]); // if文以降で生きている変数
         sv.append(&mut v);
 
-        alloc.reset();
-        let mut tv = sents_to_virtual(t, alloc);
+        let mut new_alloc = alloc.clone();
+        let mut tv = sents_to_virtual(t, &mut new_alloc);
         let mut v = alloc.save_all_alives(&program[1..]);
         tv.append(&mut v);
 
