@@ -65,6 +65,25 @@ impl Sent {
       _ => self,
     }
   }
+  fn conflict_check(&self, defined: &mut HashSet<String>) -> Option<String> {
+    match self {
+      Self::Decl(_, x) | Self::DeclAssign(_, x, _) => {
+        let res = defined.get(x).map(|x| x.to_string());
+        defined.insert(x.clone());
+        res
+      },
+      Self::Sentences(v) => {
+        let mut defined = HashSet::new();
+        for s in v.iter() {
+          if let Some(x) = s.conflict_check(&mut defined) {
+            return Some(x)
+          }
+        }
+        None
+      },
+      _ => None,
+    }
+  }
 }
 
 impl Function {
@@ -76,10 +95,20 @@ impl Function {
     let content = self.content.alpha(&mut HashMap::new(), &mut defined);
     Self {ret_type: self.ret_type, name: self.name, args: self.args, content: content}
   }
+  fn conflict_check(&self) -> Option<String> {
+    self.content.conflict_check(&mut HashSet::new())
+  }
 }
 
 impl Program {
-  pub fn alpha(self) -> Self {
-    Self {functions: self.functions.into_iter().map(|x| x.alpha()).collect()}
+  pub fn alpha(self) -> Result<Self, String> {
+    let mut res = Vec::new();
+    for fun in self.functions.into_iter() {
+      if let Some(x) = fun.conflict_check() {
+        return Err(format!("conflicting declaration: {}", x))
+      }
+      res.push(fun.alpha());
+    }
+    Ok(Self {functions: res})
   }
 }

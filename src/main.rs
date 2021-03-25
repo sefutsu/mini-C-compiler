@@ -11,7 +11,7 @@ mod asm;
 lalrpop_mod!(pub c);
 
 fn compile(s: ast::Program) -> Result<asm::Program, String> {
-  let alphaed = s.alpha();
+  let alphaed = s.alpha()?;
   eprintln!("Alphaed: {:#?}", alphaed);
   let typed = alphaed.typing()?;
   eprintln!("Typed: {:#?}", typed);
