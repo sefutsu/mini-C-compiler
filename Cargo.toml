@@ -1,8 +1,8 @@
 [package]
-name = "lalrpop"
+name = "mini-C-compiler"
 version = "0.1.0"
-authors = ["sefutsu <sefutsu.r@gmail.com>"]
-edition = "2018"
+authors = ["sefutsu"]
+edition = "2021"
 
 build = "build.rs"
 
