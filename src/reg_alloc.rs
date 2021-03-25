@@ -251,16 +251,15 @@ impl RegAlloc {
       }
     }
   }
-
+  // allocのうち生きている変数は割り当てを同じにする
   fn assign(&mut self, alloc: &Self, program: &[knormal::Sent]) -> Vec<Inst> {
     let alives = alive::free_variable(program);
     let mut insts = Vec::new();
 
     for (r, o) in alloc.reg.iter() {
       let mut v = match o {
-        None => { self.make_reg_empty(r); Vec::new() },
         Some(x) if alives.contains(x) => self.alloc_reg_and_save_resotre(x, r),
-        Some(x) => self.alloc_reg_and_restore(x, r),
+        _ => { self.make_reg_empty(r); Vec::new() },
       };
       insts.append(&mut v);
     }
