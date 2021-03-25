@@ -77,3 +77,4 @@ pub struct Program {
 
 mod to_knormal;
 mod typing;
+mod alpha;
