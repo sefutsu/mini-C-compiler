@@ -152,6 +152,29 @@ impl RegAlloc {
       }
     }
   }
+  // rに中身があればSaveし、xにrを割り当てて必要に応じてMove, Restoreする
+  fn alloc_reg_and_save_resotre(&mut self, x: &str, r: Register) -> Vec<Inst> {
+    let mut res = Vec::new();
+    if let Some(y) = self.get_reg_content(r) {
+      if *x == *y {
+        return Vec::new()
+      } else {
+        res.push(Inst::Save(r, y.to_string()));
+      }
+    }
+    self.make_reg_empty(r);
+    match self.find_var(x) {
+      None => {
+        self.alloc_reg(x, r);
+        res.push(Inst::Restore(r, x.to_string()));
+      },
+      Some(s) => {
+        self.alloc_reg(x, r);
+        res.push(Inst::Mv(r, s));
+      }
+    }
+    res
+  }
   // 変数xにレジスタを割り当てる
   fn alloc_any_reg(&mut self, x: &str, program: &[knormal::Sent]) -> (Register, Vec<Inst>) {
     match self.find_var(x) {
@@ -228,6 +251,21 @@ impl RegAlloc {
       }
     }
   }
+
+  fn assign(&mut self, alloc: &Self, program: &[knormal::Sent]) -> Vec<Inst> {
+    let alives = alive::free_variable(program);
+    let mut insts = Vec::new();
+
+    for (r, o) in alloc.reg.iter() {
+      let mut v = match o {
+        None => { self.make_reg_empty(r); Vec::new() },
+        Some(x) if alives.contains(x) => self.alloc_reg_and_save_resotre(x, r),
+        Some(x) => self.alloc_reg_and_restore(x, r),
+      };
+      insts.append(&mut v);
+    }
+    insts
+  }
 }
 
 fn sents_to_virtual(program: Vec<knormal::Sent>, alloc: &mut RegAlloc) -> Vec<Inst> {
@@ -241,11 +279,7 @@ fn sents_to_virtual(program: Vec<knormal::Sent>, alloc: &mut RegAlloc) -> Vec<In
 }
 
 impl knormal::Sent {
-  fn to_virtual(
-    self, 
-    alloc: &mut RegAlloc,
-    program: &[knormal::Sent]
-  ) -> Vec<Inst> {
+  fn to_virtual(self, alloc: &mut RegAlloc, program: &[knormal::Sent]) -> Vec<Inst> {
     let mut insts: Vec<Inst> = Vec::new();    
     match self {
       knormal::Sent::Assign(x, e) => {
@@ -299,17 +333,15 @@ impl knormal::Sent {
       knormal::Sent::IfElse(x, s, t) => {
         let (rx, mut v) = alloc.alloc_any_reg_and_restore(&x, program);
         insts.append(&mut v);
-        let mut v = alloc.save_all_alives(program);
-        insts.append(&mut v);
 
         let mut new_alloc = alloc.clone();
         let mut sv = sents_to_virtual(s, &mut new_alloc);
-        let mut v = alloc.save_all_alives(&program[1..]); // if文以降で生きている変数
+        let mut v = new_alloc.assign(&alloc, &program[1..]); // if文以降で生きている変数
         sv.append(&mut v);
 
         let mut new_alloc = alloc.clone();
         let mut tv = sents_to_virtual(t, &mut new_alloc);
-        let mut v = alloc.save_all_alives(&program[1..]);
+        let mut v = new_alloc.assign(&alloc, &program[1..]);
         tv.append(&mut v);
 
         insts.push(Inst::IfElse(rx, sv, tv));

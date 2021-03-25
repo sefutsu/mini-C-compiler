@@ -1,30 +1,32 @@
   jmp :main
 fib:
-  sub $sp, $sp, 3
+  sub $sp, $sp, 6
   sw $ra, $sp, 0
-  mv $a5, 2
-  slt $a7, $a0, $a5
-  sw $a0, $sp, 1
-  beq $a7, $zero, .else.1
+  mv $a1, 2
+  slt $a2, $a0, $a1
+  beq $a2, $zero, .else.1
   jmp :.fib.end
   jmp :.cont.2
 .else.1:
-  mv $a5, 1
-  sw $a0, $sp, 1
-  sub $a0, $a0, $a5
+  mv $a1, 1
+  sw $a0, $sp, 3
+  sub $a0, $a0, $a1
   jal :fib
-  mv $a2, 2
-  lw $a5, $sp, 1
+  mv $a5, 2
+  lw $a4, $sp, 3
   sw $a0, $sp, 2
-  sub $a0, $a5, $a2
+  sub $a0, $a4, $a5
   jal :fib
-  lw $a6, $sp, 2
-  add $a0, $a6, $a0
+  lw $a3, $sp, 2
+  add $a0, $a3, $a0
   jmp :.fib.end
+  lw $a0, $sp, 3
+  lw $a1, $sp, 4
+  lw $a2, $sp, 5
 .cont.2:
 .fib.end:
   lw $ra, $sp, 0
-  add $sp, $sp, 3
+  add $sp, $sp, 6
   ret
 main:
   sub $sp, $sp, 1
