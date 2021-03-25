@@ -252,8 +252,7 @@ impl RegAlloc {
     }
   }
   // allocのうち生きている変数は割り当てを同じにする
-  fn assign(&mut self, alloc: &Self, program: &[knormal::Sent]) -> Vec<Inst> {
-    let alives = alive::free_variable(program);
+  fn assign(&mut self, alloc: &Self, alives: &HashSet<String>) -> Vec<Inst> {
     let mut insts = Vec::new();
 
     for (r, o) in alloc.reg.iter() {
@@ -267,11 +266,11 @@ impl RegAlloc {
   }
 }
 
-fn sents_to_virtual(program: Vec<knormal::Sent>, alloc: &mut RegAlloc) -> Vec<Inst> {
+fn sents_to_virtual(program: Vec<knormal::Sent>, alloc: &mut RegAlloc, tail: &[knormal::Sent]) -> Vec<Inst> {
   let mut insts: Vec<Inst> = Vec::new();
   for (i, sent) in program.clone().into_iter().enumerate() {
     let prog: &[knormal::Sent] = &program[i..];
-    let mut v = sent.to_virtual(alloc, prog);
+    let mut v = sent.to_virtual(alloc, &[prog, tail].concat());
     insts.append(&mut v);
   }
   insts
@@ -333,14 +332,17 @@ impl knormal::Sent {
         let (rx, mut v) = alloc.alloc_any_reg_and_restore(&x, program);
         insts.append(&mut v);
 
+        let tail = &program[1..];
+        let alives = alive::free_variable(tail);
+
         let mut new_alloc = alloc.clone();
-        let mut sv = sents_to_virtual(s, &mut new_alloc);
-        let mut v = new_alloc.assign(&alloc, &program[1..]); // if文以降で生きている変数
+        let mut sv = sents_to_virtual(s, &mut new_alloc, tail);
+        let mut v = new_alloc.assign(&alloc, &alives); // if文以降で生きている変数
         sv.append(&mut v);
 
         let mut new_alloc = alloc.clone();
-        let mut tv = sents_to_virtual(t, &mut new_alloc);
-        let mut v = new_alloc.assign(&alloc, &program[1..]);
+        let mut tv = sents_to_virtual(t, &mut new_alloc, tail);
+        let mut v = new_alloc.assign(&alloc, &alives);
         tv.append(&mut v);
 
         insts.push(Inst::IfElse(rx, sv, tv));
@@ -362,7 +364,7 @@ impl knormal::Function {
     let mut alloc: RegAlloc = RegAlloc::new();
     alloc.alloc_arguments(self.args);
 
-    let insts: Vec<Inst> = sents_to_virtual(self.content, &mut alloc);
+    let insts: Vec<Inst> = sents_to_virtual(self.content, &mut alloc, &[]);
     
     Function{name: self.name, content: insts}
   }
