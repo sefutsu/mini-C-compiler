@@ -199,15 +199,6 @@ dependencies = [
 
 [[package]]
 name = "lalrpop"
-version = "0.1.0"
-dependencies = [
- "lalrpop 0.19.5",
- "lalrpop-util",
- "regex",
-]
-
-[[package]]
-name = "lalrpop"
 version = "0.19.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46962a8c71b91c3524b117dfdd70844d4265a173c4c9109f98171aebdcf1195f"
@@ -264,6 +255,15 @@ name = "memchr"
 version = "2.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
+
+[[package]]
+name = "mini_c_compiler"
+version = "0.1.0"
+dependencies = [
+ "lalrpop",
+ "lalrpop-util",
+ "regex",
+]
 
 [[package]]
 name = "new_debug_unreachable"

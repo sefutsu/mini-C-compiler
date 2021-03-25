@@ -1,8 +1,8 @@
 [package]
-name = "mini-C-compiler"
+name = "mini_c_compiler"
 version = "0.1.0"
 authors = ["sefutsu"]
-edition = "2021"
+edition = "2018"
 
 build = "build.rs"
 
