@@ -10,8 +10,8 @@ mod asm;
 
 lalrpop_mod!(pub c);
 
-fn compile(s: ast::Program) -> Result<asm::Program, String> {
-  let alphaed = s.alpha()?;
+fn compile(prog: ast::Program) -> Result<asm::Program, String> {
+  let alphaed = prog.alpha()?;
   eprintln!("Alphaed: {:#?}", alphaed);
   let typed = alphaed.typing()?;
   eprintln!("Typed: {:#?}", typed);
@@ -36,6 +36,6 @@ fn main() {
         Err(e) => eprintln!("Compile Error: {}", e),
       }
     }
-    Err(e) => eprintln!("parse error: {:#?}", e),
+    Err(e) => eprintln!("Parse error: {:#?}", e),
   }
 }

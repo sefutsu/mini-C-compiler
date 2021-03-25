@@ -96,6 +96,13 @@ impl Function {
     Self {ret_type: self.ret_type, name: self.name, args: self.args, content: content}
   }
   fn conflict_check(&self) -> Option<String> {
+    let mut defined: HashSet<String> = HashSet::new();
+    for (_, a) in self.args.iter() {
+      if defined.contains(a) {
+        return Some(a.clone())
+      }
+      defined.insert(a.clone());
+    }
     self.content.conflict_check(&mut HashSet::new())
   }
 }

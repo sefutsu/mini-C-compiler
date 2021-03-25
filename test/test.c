@@ -1,11 +1,10 @@
 int print_int(int x);
 
+int f(int x, float x){
+  return x;
+}
+
 int main(void){
-  int x = 1;
-  if(1) {
-    int x = 2;
-    print_int(x);
-  } else {}
-  print_int(x);
+  print_int(f(1, 1));
   return 0;
 }
