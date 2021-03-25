@@ -4,10 +4,7 @@ use std::io::Read;
 
 mod util;
 mod ast;
-mod typing;
 mod knormal;
-mod alive;
-mod reg_alloc;
 mod virtuals;
 mod asm;
 
@@ -36,7 +33,6 @@ fn main() {
         Ok(a) => print!("{}", a),
         Err(e) => eprintln!("Compile Error: {}", e),
       }
-      
     }
     Err(e) => eprintln!("parse error: {:#?}", e),
   }

@@ -2,22 +2,22 @@
 fib:
   sub $sp, $sp, 3
   sw $ra, $sp, 0
-  mv $a1, 2
-  slt $a7, $a0, $a1
-  beq $a7, $zero, .else.1
+  mv $a7, 2
+  slt $a4, $a0, $a7
+  beq $a4, $zero, .else.1
   lw $ra, $sp, 0
   add $sp, $sp, 3
   ret
   jmp :.cont.2
 .else.1:
-  mv $a1, 1
+  mv $a7, 1
   sw $a0, $sp, 1
-  sub $a0, $a0, $a1
+  sub $a0, $a0, $a7
   jal :fib
-  mv $a1, 2
+  mv $a2, 2
   lw $a6, $sp, 1
   sw $a0, $sp, 2
-  sub $a0, $a6, $a1
+  sub $a0, $a6, $a2
   jal :fib
   lw $a1, $sp, 2
   add $a0, $a1, $a0

@@ -74,3 +74,6 @@ pub struct Function {
 pub struct Program {
   pub functions: Vec<Function>,
 }
+
+mod to_knormal;
+mod typing;

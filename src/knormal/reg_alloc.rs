@@ -1,6 +1,6 @@
 use crate::knormal;
 use crate::virtuals::*;
-use crate::alive;
+use crate::knormal::alive;
 use std::collections::{HashMap, HashSet};
 
 static RET_REG: &str = "a0";
