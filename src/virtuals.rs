@@ -31,7 +31,7 @@ pub struct Program {
 }
 
 impl Inst {
-  fn to_asm(self, env: &HashMap<String, i32>, name: &str) -> Vec<asm::Inst> {
+  fn to_asm(self, env: &HashMap<String, i32>, fin: &Vec<asm::Inst>) -> Vec<asm::Inst> {
     match self {
       Inst::Li(r, s) => vec![asm::Inst::Mv(asm::Operand::Reg(r), asm::Operand::Int(s))],
       Inst::FLi(r, s) => vec![asm::Inst::Mv(asm::Operand::Reg(r), asm::Operand::Float(s))],
@@ -70,7 +70,7 @@ impl Inst {
         }
       },
       Inst::Jal(s) => vec![asm::Inst::Jal(s)],
-      Inst::Ret => vec![asm::Inst::Jmp(label::end(name))],
+      Inst::Ret => fin.clone(),
       Inst::Save(r, x) => {
         match env.get(&x) {
           None => Vec::new(),
@@ -84,13 +84,13 @@ impl Inst {
         let cont_label = label::generate("cont");
         res.push(asm::Inst::Beqz(asm::Operand::Reg(r), else_label.clone()));
         for i in v.into_iter() {
-          let mut c = i.to_asm(env, name);
+          let mut c = i.to_asm(env, fin);
           res.append(&mut c);
         }
         res.push(asm::Inst::Jmp(cont_label.clone()));
         res.push(asm::Inst::Label(else_label));
         for i in w.into_iter() {
-          let mut c = i.to_asm(env, name);
+          let mut c = i.to_asm(env, fin);
           res.append(&mut c);
         }
         res.push(asm::Inst::Label(cont_label));
@@ -130,24 +130,23 @@ impl Function {
     }
 
     let mut insts: Vec<asm::Inst> = vec![
-      asm::Inst::Label(self.name.clone()),
+      asm::Inst::Label(self.name),
       asm::Inst::Sub(asm::Operand::Sp, asm::Operand::Sp, asm::Operand::Int(ss)),
       asm::Inst::Sw(asm::Operand::Ra, asm::Operand::Sp, asm::Operand::Int(0)),
     ];
 
-    for ist in self.content.into_iter() {
-      let mut conveterd = ist.to_asm(&env, &self.name);
-      insts.append(&mut conveterd);
-    }
-
-    let mut fin = vec![
-      asm::Inst::Label(label::end(&self.name)),
+    let fin = vec![
       asm::Inst::Lw(asm::Operand::Ra, asm::Operand::Sp, asm::Operand::Int(0)),
       asm::Inst::Add(asm::Operand::Sp, asm::Operand::Sp, asm::Operand::Int(ss)),
       asm::Inst::Ret,
     ];
 
-    insts.append(&mut fin);
+    for ist in self.content.into_iter() {
+      let mut conveterd = ist.to_asm(&env, &fin);
+      insts.append(&mut conveterd);
+    }
+
+    
     insts
   }
 }

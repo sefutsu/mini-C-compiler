@@ -16,9 +16,6 @@ pub mod id {
 
 pub mod label {
   static mut COUNTER: u32 = 0;
-  pub fn end(s: &str) -> String {
-    format!(".{}.end", s)
-  }
   pub fn generate(s: &str) -> String {
     unsafe {
       COUNTER += 1;
