@@ -1,10 +1,7 @@
 int print_int(int x);
 
-int f(int x, float x){
-  return x;
-}
-
 int main(void){
-  print_int(f(1, 1));
+  int x = 1;
+  print_int(x = x + 1);
   return 0;
 }

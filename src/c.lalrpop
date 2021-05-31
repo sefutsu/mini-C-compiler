@@ -3,15 +3,21 @@ use crate::ast;
 
 grammar;
 
+CommaList<T>: Vec<T> = { // (1)
+  <mut v:(<T> ",")*> <e:T?> => match e {
+    None => v,
+    Some(e) => {
+      v.push(e);
+      v
+    }
+  }
+};
+
+
 pub Program: ast::Program = <Functions> => ast::Program{functions: <>};
 
 Functions: Vec<ast::Function> = {
-  <Function> => vec![<>],
-  <v:Functions> <f:Function> => {
-    let mut v = v;
-    v.push(f);
-    v
-  }
+  <Function*>,
 };
 
 pub Function: ast::Function = {
@@ -22,34 +28,14 @@ pub Function: ast::Function = {
 };
 
 TypeIdBlock: Vec<(ast::Type, String)> = {
-  "(" ")" => Vec::new(),
   "(" "void" ")" => Vec::new(),
-  "(" <TypeIds> ")",
-};
-
-TypeIds: Vec<(ast::Type, String)> = {
-  <TypeId> => vec![<>],
-  <v:TypeIds> "," <s:TypeId> => {
-    let mut v = v;
-    v.push(s);
-    v
-  }
+  "(" <CommaList<TypeId>> ")",
 };
 
 TypeId: (ast::Type, String) = <t:Type> <v:Var> => (t, v);
 
 ExpressionBlock: Vec<ast::Expr> = {
-  "(" ")" => Vec::new(),
-  "(" <Expressions> ")",
-};
-
-Expressions: Vec<ast::Expr> = {
-  <Expression> => vec![<>],
-  <v:Expressions> "," <s:Expression> => {
-    let mut v = v;
-    v.push(s);
-    v
-  }
+  "(" <CommaList<Expression>> ")",
 };
 
 pub Sentence: ast::Sent = {
@@ -65,17 +51,7 @@ pub Sentence: ast::Sent = {
 };
 
 SentenceBlock: Vec<ast::Sent> = {
-  "{" "}" => Vec::<ast::Sent>::new(),
-  "{" <Sentences> "}",
-};
-
-Sentences: Vec<ast::Sent> = {
-  <Sentence> => vec![<>],
-  <v:Sentences> <s:Sentence> => {
-    let mut v = v;
-    v.push(s);
-    v
-  }
+  "{" <Sentence*> "}",
 };
 
 Expression: ast::Expr = {
