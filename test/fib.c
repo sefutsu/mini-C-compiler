@@ -2,7 +2,7 @@ void print_int(int x);
 int read_int(void);
 
 int fib(int n) {
-  if(n < 2) return n;
+  if(n < 2 && n >= 0) return n;
   else {
     return fib(n-1) + fib(n-2);
   }

@@ -1,29 +1,17 @@
 #[derive(Debug, Clone)]
 pub enum Op1 {
-  Neg,
-  FNeg,
-  Ftoi,
-  Itof,
+  Neg, FNeg,
+  Cast(Type),
 }
 
 #[derive(Debug, Clone)]
 pub enum Op2 {
-  Add,
-  Sub,
-  Mul,
-  Div,
-  FAdd,
-  FSub,
-  FMul,
-  FDiv,
-  Eq,
-  Ne,
-  Lt,
-  Le,
-  FEq,
-  FNe,
-  FLt,
-  FLe,
+  Add, Sub, Mul, Div, Mod,
+  Lshift, Rshift,
+  And, Or, Xor,
+  FAdd, FSub, FMul, FDiv,
+  Eq, Ne, Lt, Le,
+  FEq, FNe, FLt, FLe,
 }
 
 #[derive(Debug, Clone)]
@@ -52,14 +40,13 @@ pub enum Expr {
 }
 
 #[derive(Debug, Clone)]
-pub enum Sent {
+pub enum Stat {
   Void,
   Expression(Box<Expr>),
-  Decl(Type, String),
-  DeclAssign(Type, String, Box<Expr>),
-  Sentences(Vec<Sent>),
-  Return(Box<Expr>),
-  IfElse(Box<Expr>, Box<Sent>, Box<Sent>),
+  Decl(Type, String, Option<Expr>),
+  Compound(Vec<Stat>),
+  Return(Option<Expr>),
+  IfElse(Box<Expr>, Box<Stat>, Box<Stat>),
 }
 
 #[derive(Debug, Clone)]
@@ -67,7 +54,7 @@ pub struct Function {
   pub ret_type: Type,
   pub name: String,
   pub args: Vec<(Type, String)>,
-  pub content: Sent,
+  pub content: Stat,
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +62,6 @@ pub struct Program {
   pub functions: Vec<Function>,
 }
 
-mod alpha;
-mod typing;
-mod to_knormal;
+// mod alpha;
+// mod typing;
+// mod to_knormal;

@@ -3,7 +3,7 @@ pub mod id {
   pub fn generate() -> String {
     unsafe {
       COUNTER += 1;
-      format!("x.{}", COUNTER)
+      format!(".{}", COUNTER)
     }
   }
   pub fn null() -> String {

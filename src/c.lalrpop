@@ -3,7 +3,7 @@ use crate::ast;
 
 grammar;
 
-CommaList<T>: Vec<T> = { // (1)
+CommaList<T>: Vec<T> = {
   <mut v:(<T> ",")*> <e:T?> => match e {
     None => v,
     Some(e) => {
@@ -13,102 +13,115 @@ CommaList<T>: Vec<T> = { // (1)
   }
 };
 
+pub Program: ast::Program = <Function*> => ast::Program{functions: <>};
 
-pub Program: ast::Program = <Functions> => ast::Program{functions: <>};
-
-Functions: Vec<ast::Function> = {
-  <Function*>,
+Function: ast::Function = {
+  <t:TypeSpecifier> <n:Identifier> <a:TypeIdBlock> "{" <s:Statement*> "}" =>
+    ast::Function{ret_type: t, name: n, args: a, content: ast::Stat::Compound(s)},
+  <t:TypeSpecifier> <n:Identifier> <a:TypeIdBlock> ";" => 
+    ast::Function{ret_type: t, name: n, args: a, content: ast::Stat::Void},
 };
-
-pub Function: ast::Function = {
-  <t:Type> <n:Var> <a:TypeIdBlock> <s:SentenceBlock> =>
-    ast::Function{ret_type: t, name: n, args: a, content: ast::Sent::Sentences(s)},
-  <t:Type> <n:Var> <a:TypeIdBlock> ";" => 
-    ast::Function{ret_type: t, name: n, args: a, content: ast::Sent::Void},
-};
-
 TypeIdBlock: Vec<(ast::Type, String)> = {
   "(" "void" ")" => Vec::new(),
   "(" <CommaList<TypeId>> ")",
 };
+TypeId: (ast::Type, String) = <t:TypeSpecifier> <v:Identifier> => (t, v);
 
-TypeId: (ast::Type, String) = <t:Type> <v:Var> => (t, v);
-
-ExpressionBlock: Vec<ast::Expr> = {
-  "(" <CommaList<Expression>> ")",
+Statement: ast::Stat = {
+  ";" => ast::Stat::Void,
+  <Expression> ";" => ast::Stat::Expression(Box::new(<>)),
+  <t:TypeSpecifier> <v:Identifier>";" => ast::Stat::Decl(t, v, None),
+  <t:TypeSpecifier> <v:Identifier> "=" <e:Expression> ";" => ast::Stat::Decl(t, v, Some(e)),
+  "{" <Statement*> "}" => ast::Stat::Compound(<>),
+  "return" <Expression?> ";" => ast::Stat::Return(<>),
+  "if" "(" <e:Expression> ")" <s1:Statement> "else" <s2:Statement> => 
+    ast::Stat::IfElse(Box::new(e), Box::new(s1), Box::new(s2)),
 };
 
-pub Sentence: ast::Sent = {
-  ";" => ast::Sent::Void,
-  <Expression> ";" => ast::Sent::Expression(Box::new(<>)),
-  <t:Type> <v:Var> ";" => ast::Sent::Decl(t, v),
-  <t:Type> <v:Var> "=" <e:Expression> ";" => ast::Sent::DeclAssign(t, v, Box::new(e)),
-  <SentenceBlock> => ast::Sent::Sentences(<>),
-  "return" <Expression> ";" => ast::Sent::Return(Box::new(<>)),
-  "return" ";" => ast::Sent::Return(Box::new(ast::Expr::Void)),
-  "if" "(" <e:Expression> ")" <s1:Sentence> "else" <s2:Sentence> => 
-    ast::Sent::IfElse(Box::new(e), Box::new(s1), Box::new(s2)),
+Expression: ast::Expr = <AssignmentExpression>;
+AssignmentExpression: ast::Expr = {
+  <ConditionalExpression>,
+  <i:Identifier> "=" <e:AssignmentExpression> => ast::Expr::Assign(i, Box::new(e)),
 };
-
-SentenceBlock: Vec<ast::Sent> = {
-  "{" <Sentence*> "}",
+// ConstantExpression: ast::Expr = <ConditionalExpression>;
+ConditionalExpression: ast::Expr = <LogicalOrExpression>;
+// a || b = (a != 0) | (b != 0)
+LogicalOrExpression: ast::Expr = {
+  <LogicalAndExpression>,
+  <a:LogicalOrExpression> "||" <b:LogicalAndExpression> => 
+    ast::Expr::Op2(ast::Op2::Or, Box::new(ast::Expr::Op2(ast::Op2::Ne, Box::new(a), Box::new(ast::Expr::Int(0)))), Box::new(ast::Expr::Op2(ast::Op2::Ne, Box::new(b), Box::new(ast::Expr::Int(0))))),
 };
-
-Expression: ast::Expr = {
-  <v:Var> "=" <e:Expression> => ast::Expr::Assign(v, Box::new(e)),
-  ConditionEq,
+LogicalAndExpression: ast::Expr = {
+  <InclusiveOrExpression>,
+  <a:LogicalAndExpression> "&&" <b:InclusiveOrExpression> => 
+    ast::Expr::Op2(ast::Op2::And, Box::new(ast::Expr::Op2(ast::Op2::Ne, Box::new(a), Box::new(ast::Expr::Int(0)))), Box::new(ast::Expr::Op2(ast::Op2::Ne, Box::new(b), Box::new(ast::Expr::Int(0))))),
 };
-
-ConditionEq: ast::Expr = {
-  <e1:ConditionEq> "==" <e2:Condition> => 
-    ast::Expr::Op2(ast::Op2::Eq, Box::new(e1), Box::new(e2)),
-  <e1:ConditionEq> "!=" <e2:Condition> => 
-    ast::Expr::Op2(ast::Op2::Ne, Box::new(e1), Box::new(e2)),
-  Condition,
+InclusiveOrExpression: ast::Expr = {
+  <ExclusiveOrExpression>,
+  <a:InclusiveOrExpression> "|" <b:ExclusiveOrExpression> => ast::Expr::Op2(ast::Op2::Or, Box::new(a), Box::new(b)),
+};
+ExclusiveOrExpression: ast::Expr = {
+  <AndExpression>,
+  <a:ExclusiveOrExpression> "^" <b:AndExpression> => ast::Expr::Op2(ast::Op2::Xor, Box::new(a), Box::new(b)),
+};
+AndExpression: ast::Expr = {
+  <EqualityExpression>,
+  <a:AndExpression> "&" <b:EqualityExpression> => ast::Expr::Op2(ast::Op2::And, Box::new(a), Box::new(b)),
+};
+EqualityExpression: ast::Expr = {
+  <RelationalExpression>,
+  <a:EqualityExpression> "==" <b:RelationalExpression> => ast::Expr::Op2(ast::Op2::Eq, Box::new(a), Box::new(b)),
+  <a:EqualityExpression> "!=" <b:RelationalExpression> => ast::Expr::Op2(ast::Op2::Ne, Box::new(a), Box::new(b)),
 }
-
-Condition: ast::Expr = {
-  <e1:Condition> "<" <e2:Arith> => ast::Expr::Op2(ast::Op2::Lt, Box::new(e1), Box::new(e2)),
-  <e1:Condition> "<=" <e2:Arith> => ast::Expr::Op2(ast::Op2::Le, Box::new(e1), Box::new(e2)),
-  <e1:Condition> ">" <e2:Arith> => ast::Expr::Op2(ast::Op2::Lt, Box::new(e2), Box::new(e1)),
-  <e1:Condition> ">=" <e2:Arith> => ast::Expr::Op2(ast::Op2::Le, Box::new(e2), Box::new(e1)),
-  Arith,
-}
-
-Arith: ast::Expr = {
-  <e1:Arith> "+" <e2:Factor> => ast::Expr::Op2(ast::Op2::Add, Box::new(e1), Box::new(e2)),
-  <e1:Arith> "-" <e2:Factor> => ast::Expr::Op2(ast::Op2::Sub, Box::new(e1), Box::new(e2)),
-  Factor,
+RelationalExpression: ast::Expr = {
+  <ShiftExpression>,
+  <a:RelationalExpression> "<" <b:ShiftExpression> => ast::Expr::Op2(ast::Op2::Lt, Box::new(a), Box::new(b)),
+  <a:RelationalExpression> "<=" <b:ShiftExpression> => ast::Expr::Op2(ast::Op2::Le, Box::new(a), Box::new(b)),
+  <a:RelationalExpression> ">" <b:ShiftExpression> => ast::Expr::Op2(ast::Op2::Lt, Box::new(b), Box::new(a)),
+  <a:RelationalExpression> ">=" <b:ShiftExpression> => ast::Expr::Op2(ast::Op2::Le, Box::new(b), Box::new(a)),
 };
-
-Factor: ast::Expr = {
-  <e1:Factor> "*" <e2:Single> => ast::Expr::Op2(ast::Op2::Mul, Box::new(e1), Box::new(e2)),
-  <e1:Factor> "/" <e2:Single> => ast::Expr::Op2(ast::Op2::Div, Box::new(e1), Box::new(e2)),
-  Single,
+ShiftExpression: ast::Expr = {
+  <AdditiveExpression>,
+  <a:ShiftExpression> "<<" <b:AdditiveExpression> => ast::Expr::Op2(ast::Op2::Lshift, Box::new(a), Box::new(b)),
+  <a:ShiftExpression> ">>" <b:AdditiveExpression> => ast::Expr::Op2(ast::Op2::Rshift, Box::new(a), Box::new(b)),
 };
-
-Single: ast::Expr = {
-  "-" <Single> => ast::Expr::Op1(ast::Op1::Neg, Box::new(<>)),
-  "(" "int" ")" <Single> => ast::Expr::Op1(ast::Op1::Ftoi, Box::new(<>)),
-  "(" "float" ")" <Single> => ast::Expr::Op1(ast::Op1::Itof, Box::new(<>)),
-  Atomic,
-}
-
-Atomic: ast::Expr = {
+AdditiveExpression: ast::Expr = {
+  <MultiplicativeExpression>,
+  <a:AdditiveExpression> "+" <b:MultiplicativeExpression> => ast::Expr::Op2(ast::Op2::Add, Box::new(a), Box::new(b)),
+  <a:AdditiveExpression> "-" <b:MultiplicativeExpression> => ast::Expr::Op2(ast::Op2::Sub, Box::new(a), Box::new(b)),
+};
+MultiplicativeExpression: ast::Expr = {
+  <CastExpression>,
+  <a:MultiplicativeExpression> "*" <b:CastExpression> => ast::Expr::Op2(ast::Op2::Mul, Box::new(a), Box::new(b)),
+  <a:MultiplicativeExpression> "/" <b:CastExpression> => ast::Expr::Op2(ast::Op2::Div, Box::new(a), Box::new(b)),
+  <a:MultiplicativeExpression> "%" <b:CastExpression> => ast::Expr::Op2(ast::Op2::Mod, Box::new(a), Box::new(b)),
+};
+CastExpression: ast::Expr = {
+  <UnaryExpression>,
+  "(" <t:TypeSpecifier> ")" <e:UnaryExpression> => ast::Expr::Op1(ast::Op1::Cast(t), Box::new(e)),
+};
+UnaryExpression: ast::Expr = {
+  <PrimaryExpression>,
+  <op:UnaryOperator> <e:PrimaryExpression> => ast::Expr::Op1(op, Box::new(e)),
+};
+PrimaryExpression: ast::Expr = {
   <r"[0-9]+"> => ast::Expr::Int(i32::from_str(<>).unwrap()),
   <r"([0-9]+\.[0-9]*|[0-9]*\.[0-9]+)"> => ast::Expr::Float(f32::from_str(<>).unwrap()),
   <r"[a-zA-Z_][a-zA-Z_0-9]*"> => ast::Expr::Var(String::from(<>)),
-  <n:Var> <b:ExpressionBlock> => ast::Expr::Call(n, b),
+  <n:Identifier> "(" <b:CommaList<Expression>> ")" => ast::Expr::Call(n, b),
   "(" <Expression> ")",
 };
 
-Var: String = <r"[a-zA-Z_][a-zA-Z_0-9]*"> => String::from(<>);
-
-Type: ast::Type = {
+UnaryOperator: ast::Op1 = {
+  "-" => ast::Op1::Neg,
+}
+TypeSpecifier: ast::Type = {
   "void" => ast::Type::Void,
   "int" => ast::Type::Int,
   "float" => ast::Type::Float,
-}
+};
+
+Identifier: String = <r"[a-zA-Z_][a-zA-Z_0-9]*"> => String::from(<>);
 
 // skip comments
 match {
