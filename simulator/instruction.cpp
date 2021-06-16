@@ -38,6 +38,7 @@ std::map<std::string, Instruction> instr{
   {"sra", Instruction(CPU::sra)},
   {"and", Instruction(CPU::fun_and)},
   {"or", Instruction(CPU::fun_or)},
+  {"xor", Instruction(CPU::fun_xor)},
   {"seq", Instruction(CPU::seq)},
   {"sne", Instruction(CPU::sne)},
   {"slt", Instruction(CPU::slt)},

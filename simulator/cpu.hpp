@@ -23,8 +23,9 @@ namespace CPU {
   void mod(string&, string&, string&);
   void sll(string&, string&, string&);
   void sra(string&, string&, string&);
-  void fun_or(string&, string&, string&);
   void fun_and(string&, string&, string&);
+  void fun_or(string&, string&, string&);
+  void fun_xor(string&, string&, string&);
   void seq(string&, string&, string&);
   void sne(string&, string&, string&);
   void slt(string&, string&, string&);

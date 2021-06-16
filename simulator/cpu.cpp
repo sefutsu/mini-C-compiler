@@ -76,6 +76,12 @@ namespace CPU {
     regs.seti(r0, x | y);
     pc++;
   }
+  void fun_xor(string& r0, string& r1, string& r2){
+    int x = geti(r1);
+    int y = geti(r2);
+    regs.seti(r0, x ^ y);
+    pc++;
+  }
   void seq(string& r0, string& r1, string& r2){
     int x = geti(r1);
     int y = geti(r2);
