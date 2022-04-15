@@ -11,10 +11,10 @@ fn all_regs() -> Vec<Register> {
 }
 
 // target
-fn target_opt(x: &str, program: &[knormal::Sent]) -> Option<Option<Register>> {
-  for sent in program.iter() {
-    match sent {
-      knormal::Sent::Assign(_, e) => match e {
+fn target_opt(x: &str, program: &[knormal::Stat]) -> Option<Option<Register>> {
+  for stat in program.iter() {
+    match stat {
+      knormal::Stat::Assign(_, e) => match e {
         knormal::Expr::Call(_, args) => {
           for (a, r) in args.iter().zip(all_regs()) {
             if *x == *a { return Some(Some(r)) }
@@ -23,12 +23,12 @@ fn target_opt(x: &str, program: &[knormal::Sent]) -> Option<Option<Register>> {
         },
         _ => (),
       },
-      knormal::Sent::IfElse(_, s, t) => match (target_opt(x, s), target_opt(x, t)) {
+      knormal::Stat::IfElse(_, s, t) => match (target_opt(x, s), target_opt(x, t)) {
         (Some(o), _) => return Some(o),
         (_, Some(o)) => return Some(o),
         _ => (),
       },
-      knormal::Sent::Return(Some(y)) => {
+      knormal::Stat::Return(Some(y)) => {
         if *x == *y { return Some(Some(RET_REG)) } 
       },
       _ => (),
@@ -36,7 +36,7 @@ fn target_opt(x: &str, program: &[knormal::Sent]) -> Option<Option<Register>> {
   }
   None
 }
-fn target(x: &str, program: &[knormal::Sent]) -> Option<Register> {
+fn target(x: &str, program: &[knormal::Stat]) -> Option<Register> {
   match target_opt(x, program) {
     None => None,
     Some(o) => o,
@@ -87,7 +87,7 @@ impl RegAlloc {
   }
   // 生きていないレジスタを探す。ないなら次の命令に使わないレジスタを探す
   // (レジスタ, 退避が必要かどうか)
-  fn find_proper_reg(&self, x: &str, program: &[knormal::Sent], forbidden: HashSet<String>) -> (Register, bool) {
+  fn find_proper_reg(&self, x: &str, program: &[knormal::Stat], forbidden: HashSet<String>) -> (Register, bool) {
     let alives = alive::free_variable(program);
     match target(x, program) {
       Some(r) => match self.get_reg_content(r) {
@@ -116,7 +116,7 @@ impl RegAlloc {
     }
   }
   // 生きている変数を退避する命令列を返す
-  fn save_all_alives(&self, program: &[knormal::Sent]) -> Vec<Inst> {
+  fn save_all_alives(&self, program: &[knormal::Stat]) -> Vec<Inst> {
     let mut res: Vec<Inst> = Vec::new();
     let alives: HashSet<String> = alive::free_variable(program);
     for (v, r) in self.var.iter() {
@@ -176,7 +176,7 @@ impl RegAlloc {
     res
   }
   // 変数xにレジスタを割り当てる
-  fn alloc_any_reg(&mut self, x: &str, program: &[knormal::Sent]) -> (Register, Vec<Inst>) {
+  fn alloc_any_reg(&mut self, x: &str, program: &[knormal::Stat]) -> (Register, Vec<Inst>) {
     match self.find_var(x) {
       Some(r) => (r, Vec::new()), // すでに割り当てられていた
       None => {
@@ -192,7 +192,7 @@ impl RegAlloc {
     }
   }
   // 変数xにレジスタを割り当て必要ならRestoreする
-  fn alloc_any_reg_and_restore(&mut self, x: &str, program: &[knormal::Sent]) -> (Register, Vec<Inst>) {
+  fn alloc_any_reg_and_restore(&mut self, x: &str, program: &[knormal::Stat]) -> (Register, Vec<Inst>) {
     match self.find_var(x) {
       Some(r) => (r, Vec::new()), // すでに割り当てられていた
       None => {
@@ -208,7 +208,7 @@ impl RegAlloc {
       }
     }
   }
-  fn alloc_any_reg_and_restore_without(&mut self, x: &str, program: &[knormal::Sent], forbidden: HashSet<String>) -> (Register, Vec<Inst>) {
+  fn alloc_any_reg_and_restore_without(&mut self, x: &str, program: &[knormal::Stat], forbidden: HashSet<String>) -> (Register, Vec<Inst>) {
     match self.find_var(x) {
       Some(r) => (r, Vec::new()), // すでに割り当てられていた
       None => {
@@ -266,21 +266,21 @@ impl RegAlloc {
   }
 }
 
-fn sents_to_virtual(program: Vec<knormal::Sent>, alloc: &mut RegAlloc, tail: &[knormal::Sent]) -> Vec<Inst> {
+fn stats_to_virtual(program: Vec<knormal::Stat>, alloc: &mut RegAlloc, tail: &[knormal::Stat]) -> Vec<Inst> {
   let mut insts: Vec<Inst> = Vec::new();
-  for (i, sent) in program.clone().into_iter().enumerate() {
-    let prog: &[knormal::Sent] = &program[i..];
-    let mut v = sent.to_virtual(alloc, &[prog, tail].concat());
+  for (i, stat) in program.clone().into_iter().enumerate() {
+    let prog: &[knormal::Stat] = &program[i..];
+    let mut v = stat.to_virtual(alloc, &[prog, tail].concat());
     insts.append(&mut v);
   }
   insts
 }
 
-impl knormal::Sent {
-  fn to_virtual(self, alloc: &mut RegAlloc, program: &[knormal::Sent]) -> Vec<Inst> {
+impl knormal::Stat {
+  fn to_virtual(self, alloc: &mut RegAlloc, program: &[knormal::Stat]) -> Vec<Inst> {
     let mut insts: Vec<Inst> = Vec::new();    
     match self {
-      knormal::Sent::Assign(x, e) => {
+      knormal::Stat::Assign(x, e) => {
         match e {
           knormal::Expr::Int(i) => {
             let (r, mut v) = alloc.alloc_any_reg(&x, program);
@@ -328,7 +328,7 @@ impl knormal::Sent {
           }
         }
       },
-      knormal::Sent::IfElse(x, s, t) => {
+      knormal::Stat::IfElse(x, s, t) => {
         let (rx, mut v) = alloc.alloc_any_reg_and_restore(&x, program);
         insts.append(&mut v);
 
@@ -336,18 +336,18 @@ impl knormal::Sent {
         let alives = alive::free_variable(tail);
 
         let mut new_alloc = alloc.clone();
-        let mut sv = sents_to_virtual(s, &mut new_alloc, tail);
+        let mut sv = stats_to_virtual(s, &mut new_alloc, tail);
         let mut v = new_alloc.assign(&alloc, &alives); // if文以降で生きている変数
         sv.append(&mut v);
 
         let mut new_alloc = alloc.clone();
-        let mut tv = sents_to_virtual(t, &mut new_alloc, tail);
+        let mut tv = stats_to_virtual(t, &mut new_alloc, tail);
         let mut v = new_alloc.assign(&alloc, &alives);
         tv.append(&mut v);
 
         insts.push(Inst::IfElse(rx, sv, tv));
       },
-      knormal::Sent::Return(o) => {
+      knormal::Stat::Return(o) => {
         if let Some(x) = o {
           insts = alloc.alloc_reg_and_restore(&x, RET_REG);
         }
@@ -364,7 +364,7 @@ impl knormal::Function {
     let mut alloc: RegAlloc = RegAlloc::new();
     alloc.alloc_arguments(self.args);
 
-    let insts: Vec<Inst> = sents_to_virtual(self.content, &mut alloc, &[]);
+    let insts: Vec<Inst> = stats_to_virtual(self.content, &mut alloc, &[]);
     
     Function{name: self.name, content: insts}
   }

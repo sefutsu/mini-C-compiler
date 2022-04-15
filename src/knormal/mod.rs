@@ -11,9 +11,9 @@ pub enum Expr {
 }
 
 #[derive(Debug, Clone)]
-pub enum Sent {
+pub enum Stat {
   Assign(String, Expr),
-  IfElse(String, Vec<Sent>, Vec<Sent>),
+  IfElse(String, Vec<Stat>, Vec<Stat>),
   Return(Option<String>),
 }
 
@@ -21,7 +21,7 @@ pub enum Sent {
 pub struct Function {
   pub name: String,
   pub args: Vec<String>,
-  pub content: Vec<Sent>,
+  pub content: Vec<Stat>,
 }
 
 #[derive(Debug, Clone)]

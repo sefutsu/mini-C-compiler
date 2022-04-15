@@ -24,7 +24,7 @@ impl Expr {
   }
 }
 
-impl Sent {
+impl Stat {
   fn alpha(self, env: &mut HashMap<String, String>, defined: &mut HashSet<String>) -> Self {
     match self {
       Self::Expression(e) => Self::Expression(Box::new(e.alpha(env))),

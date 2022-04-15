@@ -52,14 +52,14 @@ pub enum Expr {
 }
 
 #[derive(Debug, Clone)]
-pub enum Sent {
+pub enum Stat {
   Void,
   Expression(Box<Expr>),
   Decl(Type, String),
   DeclAssign(Type, String, Box<Expr>),
-  Statements(Vec<Sent>),
+  Statements(Vec<Stat>),
   Return(Box<Expr>),
-  IfElse(Box<Expr>, Box<Sent>, Box<Sent>),
+  IfElse(Box<Expr>, Box<Stat>, Box<Stat>),
 }
 
 #[derive(Debug, Clone)]
@@ -67,7 +67,7 @@ pub struct Function {
   pub ret_type: Type,
   pub name: String,
   pub args: Vec<(Type, String)>,
-  pub content: Sent,
+  pub content: Stat,
 }
 
 #[derive(Debug, Clone)]

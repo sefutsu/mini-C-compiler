@@ -137,7 +137,7 @@ impl Expr {
   }
 }
 
-impl Sent {
+impl Stat {
   fn typing(self, env: &mut HashMap<String, Type>, funenv: &HashMap<String, FunType>) -> Result<Self, String> {
     match self {
       Self::Void => Ok(self),
@@ -201,7 +201,7 @@ impl Program {
       };
       funenv.insert(fun.name.clone(), t);
       match fun.content {
-        Sent::Void => (),
+        Stat::Void => (),
         _ => {
           let typed = fun.typing(&funenv)?;
           res.functions.push(typed);
