@@ -57,7 +57,7 @@ pub enum Sent {
   Expression(Box<Expr>),
   Decl(Type, String),
   DeclAssign(Type, String, Box<Expr>),
-  Sentences(Vec<Sent>),
+  Statements(Vec<Sent>),
   Return(Box<Expr>),
   IfElse(Box<Expr>, Box<Sent>, Box<Sent>),
 }

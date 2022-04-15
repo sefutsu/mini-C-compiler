@@ -21,8 +21,8 @@ Functions: Vec<ast::Function> = {
 };
 
 pub Function: ast::Function = {
-  <t:Type> <n:Var> <a:TypeIdBlock> <s:SentenceBlock> =>
-    ast::Function{ret_type: t, name: n, args: a, content: ast::Sent::Sentences(s)},
+  <t:Type> <n:Var> <a:TypeIdBlock> <s:StatementBlock> =>
+    ast::Function{ret_type: t, name: n, args: a, content: ast::Sent::Statements(s)},
   <t:Type> <n:Var> <a:TypeIdBlock> ";" => 
     ast::Function{ret_type: t, name: n, args: a, content: ast::Sent::Void},
 };
@@ -38,20 +38,20 @@ ExpressionBlock: Vec<ast::Expr> = {
   "(" <CommaList<Expression>> ")",
 };
 
-pub Sentence: ast::Sent = {
+pub Statement: ast::Sent = {
   ";" => ast::Sent::Void,
   <Expression> ";" => ast::Sent::Expression(Box::new(<>)),
   <t:Type> <v:Var> ";" => ast::Sent::Decl(t, v),
   <t:Type> <v:Var> "=" <e:Expression> ";" => ast::Sent::DeclAssign(t, v, Box::new(e)),
-  <SentenceBlock> => ast::Sent::Sentences(<>),
+  <StatementBlock> => ast::Sent::Statements(<>),
   "return" <Expression> ";" => ast::Sent::Return(Box::new(<>)),
   "return" ";" => ast::Sent::Return(Box::new(ast::Expr::Void)),
-  "if" "(" <e:Expression> ")" <s1:Sentence> "else" <s2:Sentence> => 
+  "if" "(" <e:Expression> ")" <s1:Statement> "else" <s2:Statement> => 
     ast::Sent::IfElse(Box::new(e), Box::new(s1), Box::new(s2)),
 };
 
-SentenceBlock: Vec<ast::Sent> = {
-  "{" <Sentence*> "}",
+StatementBlock: Vec<ast::Sent> = {
+  "{" <Statement*> "}",
 };
 
 Expression: ast::Expr = {

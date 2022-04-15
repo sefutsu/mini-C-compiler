@@ -51,14 +51,14 @@ impl Sent {
         defined.insert(x.clone());
         Self::DeclAssign(t, x, Box::new(e))
       },
-      Self::Sentences(v) => {
+      Self::Statements(v) => {
         let mut res = Vec::new();
         let mut new_env = env.clone();
         let mut new_def = defined.clone();
         for s in v.into_iter() {
           res.push(s.alpha(&mut new_env, &mut new_def));
         }
-        Self::Sentences(res)
+        Self::Statements(res)
       },
       Self::IfElse(e, s, t) => Self::IfElse(Box::new(e.alpha(env)), Box::new(s.alpha(env, defined)), Box::new(t.alpha(env, defined))),
       Self::Return(e) => Self::Return(Box::new(e.alpha(env))),
@@ -72,7 +72,7 @@ impl Sent {
         defined.insert(x.clone());
         res
       },
-      Self::Sentences(v) => {
+      Self::Statements(v) => {
         let mut defined = HashSet::new();
         for s in v.iter() {
           if let Some(x) = s.conflict_check(&mut defined) {

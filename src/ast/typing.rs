@@ -154,13 +154,13 @@ impl Sent {
         let (res, _) = Expr::Assign(x, e).typing(env, funenv)?;
         Ok(Self::Expression(Box::new(res)))
       }
-      Self::Sentences(v) => {
+      Self::Statements(v) => {
         let mut res = Vec::new();
         for s in v {
           let t = s.typing(env, funenv)?;
           res.push(t);
         }
-        Ok(Self::Sentences(res))
+        Ok(Self::Statements(res))
       },
       Self::IfElse(e, s1, s2) => {
         let (e, t) = e.typing(env, funenv)?;

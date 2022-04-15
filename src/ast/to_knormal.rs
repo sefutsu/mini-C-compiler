@@ -60,7 +60,7 @@ impl ast::Sent {
         ast::Expr::Assign(x, e) => e.to_knormal(x),
         _ => e.to_knormal(util::id::null()),
       },
-      Self::Sentences(v) => {
+      Self::Statements(v) => {
         let mut res = Vec::<Sent>::new();
         for s in v {
           let mut t = s.to_knormal();
