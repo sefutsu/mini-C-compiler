@@ -39,6 +39,7 @@ ExpressionBlock: Vec<ast::Expr> = {
 };
 
 pub Statement: ast::Stat = {
+  #[precedence(level="0")]
   ";" => ast::Stat::Void,
   <Expression> ";" => ast::Stat::Expression(Box::new(<>)),
   <t:Type> <v:Var> ";" => ast::Stat::Decl(t, v),
@@ -46,6 +47,8 @@ pub Statement: ast::Stat = {
   <StatementBlock> => ast::Stat::Statements(<>),
   "return" <Expression> ";" => ast::Stat::Return(Box::new(<>)),
   "return" ";" => ast::Stat::Return(Box::new(ast::Expr::Void)),
+  #[precedence(level="1")] #[assoc(side="right")]
+  "if" "(" <e:Expression> ")" <s:Statement> => ast::Stat::IfElse(Box::new(e), Box::new(s), Box::new(ast::Stat::Void)),
   "if" "(" <e:Expression> ")" <s1:Statement> "else" <s2:Statement> => 
     ast::Stat::IfElse(Box::new(e), Box::new(s1), Box::new(s2)),
 };
